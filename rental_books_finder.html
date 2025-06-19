@@ -3,7 +3,7 @@
   <head>
     <base target="_top">
     <title>貸出書籍検索システム</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap'); /* Google Font Import */
 
@@ -127,71 +127,108 @@
       }
 
 
-      /* --- Scanner Viewport --- */
-      #interactive.viewport { /* ID修正 */
-        position: relative;
-        width: 100%;
-        max-width: 2880px; /* スキャナ表示の最大幅を3倍に拡大 */
-        max-height: 2880px; /* 3倍に拡大 */
-        height: auto;
-        overflow: hidden;
-        margin: 45px auto; /* 上下マージンを3倍に拡大 */
-        border: 6px solid #0056b3; /* 青い枠線を3倍に拡大 */
-        border-radius: 24px; /* 角丸を3倍に拡大 */
-        background-color: #f8f9fa; /* 背景色を少し明るく */
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1); /* 影を3倍に拡大 */
-      }
-      #interactive.viewport > canvas, #interactive.viewport > video { /* ID修正 */
-        max-width: 100%;
-        width: 100%;
-        height: auto; /* 高さを自動に */
-      }
-      canvas.drawing, canvas.drawingBuffer {
-        position: absolute;
-        left: 0;
-        top: 0;
-      }
-      /* スキャンガイド */
-      .scan-guide {
-        position: absolute;
+      /* --- Scanner Container --- */
+      /* スキャナーコンテナ全体 */
+      .scanner-container {
+        position: fixed;
         top: 0;
         left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* スキャナーヘッダー */
+      .scanner-header {
+        position: absolute;
+        top: 0;
         right: 0;
-        bottom: 0;
-        pointer-events: none; /* クリックイベントを透過 */
-        z-index: 10;
+        padding: 20px;
+        z-index: 1002;
       }
-      .scan-guide::before {
-        content: "";
+
+      .close-scanner-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        font-size: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      /* スキャナービューポート */
+      .scanner-viewport {
+        position: relative;
+        width: 90%;
+        max-width: 600px;
+        height: 400px;
+        overflow: hidden;
+        background-color: #000;
+      }
+
+      /* Quaggaが追加する全要素を制御 */
+      .scanner-viewport > * {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .scanner-viewport video {
+        object-fit: cover !important;
+      }
+
+      .scanner-viewport canvas {
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
+      /* 不要な要素を確実に非表示 */
+      .scanner-viewport br,
+      .scanner-viewport .drawingBuffer {
+        display: none !important;
+      }
+
+      /* スキャンガイド */
+      .scanner-guide {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 70%;
-        height: 30%;
-        border: 6px dashed #dc3545; /* 赤い点線を3倍に拡大 */
-        border-radius: 12px; /* 角丸を3倍に拡大 */
-        box-shadow: 0 0 0 3000px rgba(0, 0, 0, 0.3); /* 外側を暗く、3倍に拡大 */
-        animation: pulse 2s infinite; /* 点滅アニメーション */
+        width: 80%;
+        max-width: 400px;
+        pointer-events: none;
+        z-index: 1001;
       }
-      @keyframes pulse {
-        0% { opacity: 0.5; }
-        50% { opacity: 1; }
-        100% { opacity: 0.5; }
+
+      .guide-frame {
+        width: 100%;
+        height: 120px;
+        border: 4px solid #00ff00;
+        border-radius: 10px;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+        animation: pulse 2s infinite;
       }
-      /* スキャン中のメッセージ */
-      .scan-message {
-        position: absolute;
-        bottom: 30px; /* 3倍に拡大 */
-        left: 0;
-        right: 0;
-        text-align: center;
+
+      .guide-text {
         color: white;
-        background-color: rgba(0, 86, 179, 0.7); /* 半透明の青 */
-        padding: 15px; /* 3倍に拡大 */
+        text-align: center;
+        margin-top: 20px;
+        font-size: 36px;
         font-weight: bold;
-        font-size: 48px; /* 3倍に拡大 */
-        z-index: 11;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      }
+
+      @keyframes pulse {
+        0%, 100% { border-color: #00ff00; }
+        50% { border-color: #00ff88; }
       }
 
       /* --- Results Area --- */
@@ -382,7 +419,16 @@
         <button id="scan-book-id-button">書籍IDをスキャン</button>
         <input type="text" id="book-id" name="bookId" placeholder="スキャンするか手入力してください">
         <button id="search-book-button" class="btn-utility">検索</button>
-        <div id="interactive" class="viewport"></div>
+        <div id="scanner-container-finder" class="scanner-container" style="display: none;">
+          <div class="scanner-header">
+            <button class="close-scanner-btn" onclick="closeScanner('interactive')">✕ 閉じる</button>
+          </div>
+          <div id="interactive" class="scanner-viewport"></div>
+          <div class="scanner-guide">
+            <div class="guide-frame"></div>
+            <p class="guide-text">バーコードを枠内に合わせてください</p>
+          </div>
+        </div>
       </div>
 
       <button class="btn-utility" onclick="searchRentalRecords()">検索</button>
@@ -405,8 +451,7 @@
 
       // ページ読み込み完了時の処理
       window.onload = function() {
-        // 初期状態ではスキャナービューポートを非表示にする
-        document.getElementById('interactive').style.display = 'none';
+        // イベントリスナー設定
       };
 
       // スキャンボタンの処理
@@ -415,59 +460,69 @@
       });
 
       // スキャナーの表示/非表示を切り替える関数
-      function toggleScanner(targetElementId, inputFieldId) {
-        const targetViewport = document.getElementById(targetElementId);
-        if (!isScanning) {
-          targetViewport.style.display = 'block';
-          startScanner(targetElementId, inputFieldId);
-          isScanning = true;
+      function toggleScanner(viewportId, inputFieldId) {
+        const containerId = 'scanner-container-finder';
+        const container = document.getElementById(containerId);
+        
+        if (container.style.display === 'none') {
+          container.style.display = 'flex';
+          startScanner(viewportId, inputFieldId);
         } else {
-          stopScanner(targetElementId);
-          targetViewport.style.display = 'none';
-          isScanning = false;
+          closeScanner(viewportId);
         }
+      }
+
+      function closeScanner(viewportId) {
+        const containerId = 'scanner-container-finder';
+        const container = document.getElementById(containerId);
+        container.style.display = 'none';
+        stopScanner(viewportId);
       }
 
       function startScanner(targetElementId, inputFieldId) {
         setMessage("カメラを起動しています...");
         
-        // スキャンガイドとメッセージを追加
-        const viewport = document.getElementById(targetElementId);
+        // 既存のインスタンスを確実に停止
+        if (typeof Quagga !== 'undefined' && Quagga._handler) {
+          Quagga.stop();
+          
+          // ビューポートをクリーンアップ
+          const viewport = document.getElementById(targetElementId);
+          if (viewport) {
+            while (viewport.firstChild) {
+              viewport.removeChild(viewport.firstChild);
+            }
+          }
+        }
         
-        // 既存のガイドとメッセージを削除
-        const existingGuide = viewport.querySelector('.scan-guide');
-        if (existingGuide) viewport.removeChild(existingGuide);
-        const existingMessage = viewport.querySelector('.scan-message');
-        if (existingMessage) viewport.removeChild(existingMessage);
+        isScanning = true;
         
-        // 新しいガイドとメッセージを追加
-        const scanGuide = document.createElement('div');
-        scanGuide.className = 'scan-guide';
-        viewport.appendChild(scanGuide);
-        
-        const scanMessage = document.createElement('div');
-        scanMessage.className = 'scan-message';
-        scanMessage.textContent = 'バーコードをガイド内に合わせてください';
-        viewport.appendChild(scanMessage);
+        // 初期化前に少し待機
+        setTimeout(() => {
+          initializeScanner(targetElementId, inputFieldId);
+        }, 200);
+      }
+      
+      function initializeScanner(targetElementId, inputFieldId) {
+        // スキャンガイドとメッセージはHTMLに既に含まれているため、ここでは追加しない
         
         Quagga.init({
           inputStream : {
             name : "Live",
             type : "LiveStream",
-            target: document.getElementById(targetElementId),
+            target: document.querySelector(`#${targetElementId}`),
             constraints: {
-              width: 640,  // 正方形に設定
-              height: 640,  // 正方形に設定
+              width: 1280,
+              height: 720,
               facingMode: "environment"
-            },
-            area: { top: "10%", right: "5%", left: "5%", bottom: "10%" } // スキャンエリアを広げる
+            }
           },
           locator: { 
-            patchSize: "large",  // パッチサイズを大きくして精度向上
-            halfSample: false    // 半分サンプリングを無効化して精度向上
+            patchSize: "medium",
+            halfSample: true
           },
-          numOfWorkers: navigator.hardwareConcurrency || 4,
-          frequency: 2,          // スキャン頻度を少し上げて精度向上
+          numOfWorkers: 2,
+          frequency: 10,
           decoder : { 
             readers : [          // 複数のバーコードリーダーを有効化
               'code_128_reader',
@@ -555,66 +610,32 @@
           // ビープ音を再生
           playBeepSound();
           
-          stopScanner(targetElementId);
-          document.getElementById(targetElementId).style.display = 'none';
-          isScanning = false;
+          closeScanner(targetElementId);
           searchRentalRecords(); // 書籍IDが読み取れたら自動的に検索
         });
       }
 
-      function stopScanner(targetElementId) {
-         if (typeof Quagga !== 'undefined') {
-            // 初期化されているかどうかに関わらず、すべてのイベントリスナーを解除
-            try {
-                Quagga.offDetected();  // すべての検出リスナーを解除
-                Quagga.offProcessed(); // すべての処理リスナーを解除
-                
-                if (Quagga.initialized) {
-                    Quagga.stop();
-                    console.log("Quagga スキャナー停止");
-                    // 初期化状態をリセット
-                    Quagga.initialized = false;
-                }
-            } catch (e) {
-                console.error("Quaggaリスナー解除中にエラー:", e);
-            }
-            
-            // カメラストリームを明示的に停止
-            const viewport = document.getElementById(targetElementId);
-            if (viewport) {
-                const canvas = viewport.querySelector('canvas');
-                if (canvas) viewport.removeChild(canvas);
-                
-                const video = viewport.querySelector('video');
-                if (video) {
-                    // ビデオ要素のストリームを取得して停止
-                    try {
-                        const stream = video.srcObject;
-                        if (stream) {
-                            const tracks = stream.getTracks();
-                            tracks.forEach(track => {
-                                track.stop(); // 各トラック（カメラなど）を明示的に停止
-                                console.log("カメラトラック停止:", track.kind);
-                            });
-                            video.srcObject = null; // ストリームの参照を解除
-                        }
-                    } catch (e) {
-                        console.error("カメラストリーム停止中にエラー:", e);
-                    }
-                    
-                    viewport.removeChild(video);
-                }
-                
-                // スキャンガイドとメッセージを削除
-                const existingGuide = viewport.querySelector('.scan-guide');
-                if (existingGuide) viewport.removeChild(existingGuide);
-                const existingMessage = viewport.querySelector('.scan-message');
-                if (existingMessage) viewport.removeChild(existingMessage);
-            }
-         } else {
-            console.log("Quagga is not defined.");
-         }
-         console.log("スキャナー停止処理完了");
+      function stopScanner(viewportId) {
+        // Quaggaが初期化されているかチェック
+        if (typeof Quagga !== 'undefined' && Quagga._handler && Quagga._handler.inputStream) {
+          try {
+            Quagga.stop();
+          } catch (e) {
+            console.log('Quagga.stop() エラー（無視可能）:', e);
+          }
+        }
+        
+        // ビューポートを完全にクリア
+        const viewport = document.getElementById(viewportId);
+        if (viewport) {
+          // インラインスタイルをリセット
+          viewport.removeAttribute('style');
+          // 全ての子要素を削除
+          viewport.innerHTML = '';
+        }
+        
+        // スキャン状態をリセット
+        isScanning = false;
       }
 
       // デバッグログ関連の関数を削除し、空の関数に置き換え
