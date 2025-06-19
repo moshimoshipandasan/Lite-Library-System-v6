@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      text-align: center;
+    }
+    h1 {
+      font-size: 72px;
+      color: #333;
+      margin-bottom: 40px;
+    }
+    .menu-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .menu-button {
+      width: 100%;
+      padding: 30px;
+      font-size: 48px;
+      font-weight: bold;
+      text-decoration: none;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: block;
+    }
+    .menu-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    .checkout {
+      background-color: #4CAF50;
+    }
+    .return {
+      background-color: #2196F3;
+    }
+    .finder {
+      background-color: #FF9800;
+    }
+    .user-returns {
+      background-color: #9C27B0;
+    }
+    .register {
+      background-color: #F44336;
+    }
+    .menu-icon {
+      font-size: 60px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 56px;
+      }
+      .menu-button {
+        font-size: 36px;
+        padding: 25px;
+      }
+      .menu-icon {
+        font-size: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>図書館管理システム</h1>
+  
+  <div class="menu-container" id="menuContainer">
+    <div class="menu-button checkout" style="text-align: center; color: #ddd;">
+      読み込み中...
+    </div>
+  </div>
+
+  <script>
+    // WebアプリのURLを取得してメニューリンクを生成
+    google.script.run.withSuccessHandler(function(baseUrl) {
+      const menuItems = [
+        { page: 'checkout', icon: '📚', text: '図書貸出', class: 'checkout' },
+        { page: 'return', icon: '📖', text: '図書返却', class: 'return' },
+        { page: 'finder', icon: '🔍', text: '貸出書籍検索', class: 'finder' },
+        { page: 'user_returns', icon: '👤', text: '利用者別返却', class: 'user-returns' },
+        { page: 'register', icon: '➕', text: '書籍登録', class: 'register' }
+      ];
+
+      let menuHtml = '';
+      menuItems.forEach(item => {
+        menuHtml += `
+          <a href="${baseUrl}?page=${item.page}" class="menu-button ${item.class}">
+            <span class="menu-icon">${item.icon}</span>
+            ${item.text}
+          </a>
+        `;
+      });
+
+      document.getElementById('menuContainer').innerHTML = menuHtml;
+    }).withFailureHandler(function(error) {
+      console.error('Error:', error);
+      // エラー時は相対URLを使用
+      document.getElementById('menuContainer').innerHTML = `
+        <a href="?page=checkout" class="menu-button checkout">
+          <span class="menu-icon">📚</span>
+          図書貸出
+        </a>
+        <a href="?page=return" class="menu-button return">
+          <span class="menu-icon">📖</span>
+          図書返却
+        </a>
+        <a href="?page=finder" class="menu-button finder">
+          <span class="menu-icon">🔍</span>
+          貸出書籍検索
+        </a>
+        <a href="?page=user_returns" class="menu-button user-returns">
+          <span class="menu-icon">👤</span>
+          利用者別返却
+        </a>
+        <a href="?page=register" class="menu-button register">
+          <span class="menu-icon">➕</span>
+          書籍登録
+        </a>
+      `;
+    }).getWebAppUrl();
+  </script>
+</body>
+</html>
