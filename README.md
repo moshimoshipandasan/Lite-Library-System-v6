@@ -241,6 +241,10 @@ npx clasp logs
 2. Google Apps Scriptの実行ログ
 3. Googleスプレッドシートのデータ整合性
 
+## ライセンス
+
+このプロジェクトは[MIT License](LICENSE)の下で公開されています。
+
 ---
 
 最終更新日: 2025年6月
