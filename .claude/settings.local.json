@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx clasp:*)",
+      "Bash(npm config:*)",
+      "Bash(mkdir:*)",
+      "Bash(source ~/.bashrc)",
+      "Bash(export PATH=~/.npm-global/bin:$PATH)",
+      "Bash(clasp:*)",
+      "Bash(npm run:*)",
+      "Bash(node:*)",
+      "Bash(npm --version)",
+      "Bash(git --version)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh:*)",
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": []
+  }
+}
