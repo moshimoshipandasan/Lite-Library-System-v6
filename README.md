@@ -1,6 +1,18 @@
-# 図書館管理システム v6 使い方マニュアル
+# 📚 図書館管理システム v6
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?logo=google&logoColor=white)](https://developers.google.com/apps-script)
 
 Google Apps Script（GAS）で作成された、シンプルで使いやすい図書館管理システムです。バーコードスキャン機能により、スマートフォンやタブレットで簡単に書籍の貸出・返却ができます。
+
+## 🌟 特徴
+
+このシステムは、小規模な図書館、学校、オフィス、個人の蔵書管理などに最適です。
+
+- **完全無料** - Google Apps Scriptを使用するため、サーバー費用は不要
+- **簡単セットアップ** - Googleアカウントがあれば10分で導入可能
+- **どこでも使える** - インターネット接続があればPC・スマホ・タブレットから利用可能
+- **リアルタイム同期** - 複数人での同時利用に対応
 
 ## 目次
 
@@ -18,6 +30,13 @@ Google Apps Script（GAS）で作成された、シンプルで使いやすい�
 - 🔄 **リアルタイム管理**: Googleスプレッドシートと連携してリアルタイムで情報更新
 - 🎯 **シンプルな操作**: 大きなボタンとわかりやすい画面構成
 - 🌐 **どこからでもアクセス**: インターネット接続があればどこからでも利用可能
+
+## 🚀 クイックスタート
+
+### 必要なもの
+- Googleアカウント
+- インターネット接続
+- カメラ付きデバイス（バーコードスキャン使用時）
 
 ## 初期設定
 
@@ -234,18 +253,72 @@ npx clasp logs
 - カメラは使用時のみアクセスされます
 - HTTPSでホストされている必要があります
 
-## サポート
+## 📱 対応環境
+
+### 推奨ブラウザ
+- Google Chrome（最新版）
+- Safari（iOS 14以降）
+- Firefox（最新版）
+- Microsoft Edge（最新版）
+
+### モバイルデバイス
+- iPhone（iOS 14以降）
+- iPad（iPadOS 14以降）
+- Androidスマートフォン（Android 8.0以降）
+- Androidタブレット（Android 8.0以降）
+
+## 🤝 貢献について
+
+このプロジェクトへの貢献を歓迎します！
+
+1. このリポジトリをフォーク
+2. 新しいブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+### バグ報告・機能要望
+
+[Issues](https://github.com/moshimoshipandasan/Lite-Library-System-v6/issues)から報告してください。
+
+## 📞 サポート
+
+### よくある質問
+
+**Q: カメラが起動しない**
+A: HTTPSでアクセスしているか確認し、ブラウザの設定でカメラへのアクセスを許可してください。
+
+**Q: バーコードが読み取れない**
+A: 明るい場所で、バーコードを緑色の枠内に収めてください。
+
+**Q: エラーが表示される**
+A: インターネット接続とGoogleスプレッドシートへのアクセス権限を確認してください。
+
+### 技術的な問題
 
 問題が発生した場合は、以下を確認してください：
 1. ブラウザのコンソールログ（F12キー）
 2. Google Apps Scriptの実行ログ
 3. Googleスプレッドシートのデータ整合性
 
-## ライセンス
+## 📜 ライセンス
 
 このプロジェクトは[MIT License](LICENSE)の下で公開されています。
 
+## 👨‍💻 作者
+
+**moshimoshipandasan**
+- GitHub: [@moshimoshipandasan](https://github.com/moshimoshipandasan)
+
+## 🙏 謝辞
+
+- [QuaggaJS](https://github.com/serratus/quaggaJS) - バーコードスキャンライブラリ
+- [Google Apps Script](https://developers.google.com/apps-script) - バックエンドプラットフォーム
+- [Google Fonts](https://fonts.google.com/) - Noto Sans JPフォント
+
 ---
 
-最終更新日: 2025年6月
-バージョン: 6.0
+最終更新日: 2025年6月  
+バージョン: 6.0.0
+
+⭐ このプロジェクトが役に立ったら、スターをお願いします！
