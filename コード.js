@@ -617,6 +617,7 @@ function findRentalRecords(bookId) {
         const dueDate = row[dueDateColIndex];
         
         const record = {
+          rowNumber: i + 1, // 行番号を追加（1ベース）
           bookId: rowBookId,
           bookTitle: row[titleColIndex] || "",
           userId: row[userIdColIndex] || "",
@@ -706,6 +707,208 @@ function findRentalRecords(bookId) {
  * @param {string[]} bookIds - 返却する書籍IDの配列
  * @return {object} 処理結果メッセージ { message: string }
  */
+/**
+ * 選択された書籍を一括返却する関数（行番号ベース）
+ * @param {Array} records - 返却する書籍の行番号配列 [{rowNumber: number, bookId: string}, ...]
+ * @return {Object} 処理結果とメッセージ
+ */
+function processBulkReturnByRowNumbers(records) {
+  console.log("一括返却データ受信（行番号版）:", records);
+  let successCount = 0;
+  let errorCount = 0;
+  const errorMessages = [];
+
+  if (!Array.isArray(records) || records.length === 0) {
+    return { message: "返却処理失敗: 書籍が指定されていません。" };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (!lendingSheet) {
+      throw new Error("シート「貸出記録」が見つかりません。");
+    }
+
+    const statusColIndex = 7;     // G列（1ベース）
+    const returnDateColIndex = 8; // H列（1ベース）
+    const currentDate = new Date();
+
+    // 行番号でソート（大きい順）して、行の削除や更新で番号がずれないようにする
+    const sortedRecords = records.sort((a, b) => b.rowNumber - a.rowNumber);
+
+    sortedRecords.forEach(record => {
+      const { rowNumber, bookId } = record;
+      
+      try {
+        // 行番号を使用して直接セルを更新
+        lendingSheet.getRange(rowNumber, statusColIndex).setValue("返却済");
+        lendingSheet.getRange(rowNumber, returnDateColIndex).setValue(currentDate);
+        successCount++;
+        console.log(`返却処理完了: 書籍ID=${bookId} (行 ${rowNumber})`);
+      } catch (e) {
+        errorCount++;
+        errorMessages.push(`行 ${rowNumber} の更新中にエラー: ${e.message}`);
+        console.error(`行 ${rowNumber} の更新エラー:`, e);
+      }
+    });
+
+    // 結果メッセージを生成
+    let message = "";
+    if (successCount > 0) {
+      message = `${successCount} 冊の本を返却しました。`;
+    }
+    if (errorCount > 0) {
+      message += ` ${errorCount} 件のエラーが発生しました。`;
+    }
+
+    console.log("一括返却処理完了:", message);
+    return { 
+      message: message,
+      successCount: successCount,
+      errorCount: errorCount,
+      errorMessages: errorMessages
+    };
+    
+  } catch (error) {
+    const errorMsg = `一括返却処理中にエラーが発生しました: ${error}`;
+    console.error(errorMsg);
+    console.error(error);
+    return { message: `返却処理失敗: ${error.message}` };
+  }
+}
+
+/**
+ * 選択された書籍を一括返却する関数（詳細情報付き）
+ * @param {Array} bookRecords - 返却する書籍の詳細情報配列 [{bookId, userId, lendingDate}, ...]
+ * @return {Object} 処理結果とメッセージ
+ */
+function processBulkReturnWithDetails(bookRecords) {
+  console.log("一括返却データ受信（詳細版）:", bookRecords);
+  let successCount = 0;
+  let notFoundCount = 0;
+  let alreadyReturnedCount = 0;
+  let errorCount = 0;
+  const notFoundIds = [];
+  const alreadyReturnedIds = [];
+  const errorMessages = [];
+
+  if (!Array.isArray(bookRecords) || bookRecords.length === 0) {
+    return { message: "返却処理失敗: 書籍が指定されていません。" };
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (!lendingSheet) {
+      throw new Error("シート「貸出記録」が見つかりません。");
+    }
+
+    const data = lendingSheet.getDataRange().getValues();
+    const bookIdColIndex = 0;     // A列
+    const userIdColIndex = 2;     // C列
+    const lendingDateColIndex = 4;// E列
+    const statusColIndex = 6;     // G列
+    const returnDateColIndex = 7; // H列
+    const currentDate = new Date();
+
+    const updates = []; // 更新内容を一時保存
+
+    bookRecords.forEach(record => {
+      const { bookId, userId, lendingDate } = record;
+      if (!bookId) return; // 空のIDはスキップ
+
+      let recordFound = false;
+      
+      // 特定のレコードを探す
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const rowBookId = row[bookIdColIndex] ? row[bookIdColIndex].toString().trim() : "";
+        const rowUserId = row[userIdColIndex] ? row[userIdColIndex].toString().trim() : "";
+        const rowLendingDate = row[lendingDateColIndex];
+        const rowStatus = row[statusColIndex];
+        
+        // 書籍ID、利用者ID、貸出日時が一致するレコードを探す
+        if (rowBookId.toLowerCase() === bookId.toLowerCase() && 
+            rowUserId === userId && 
+            rowStatus === "未返却") {
+          
+          // 貸出日時の比較（文字列またはDateオブジェクト）
+          let dateMatch = false;
+          if (lendingDate && rowLendingDate) {
+            const lendingDateStr = new Date(lendingDate).toISOString();
+            const rowLendingDateStr = rowLendingDate instanceof Date ? 
+              rowLendingDate.toISOString() : new Date(rowLendingDate).toISOString();
+            dateMatch = lendingDateStr === rowLendingDateStr;
+          }
+          
+          if (dateMatch || (!lendingDate && !rowLendingDate)) {
+            recordFound = true;
+            // 更新リストに追加
+            updates.push({ row: i + 1, col: statusColIndex + 1, value: "返却済" });
+            updates.push({ row: i + 1, col: returnDateColIndex + 1, value: currentDate });
+            successCount++;
+            console.log(`返却処理準備完了: 書籍ID=${bookId}, 利用者ID=${userId} (行 ${i + 1})`);
+            break;
+          }
+        }
+      }
+      
+      if (!recordFound) {
+        notFoundCount++;
+        notFoundIds.push(bookId);
+        console.warn(`書籍ID ${bookId} の指定されたレコードが見つかりませんでした。`);
+      }
+    });
+
+    // まとめて更新
+    if (updates.length > 0) {
+      updates.forEach(update => {
+        try {
+          lendingSheet.getRange(update.row, update.col).setValue(update.value);
+        } catch (e) {
+          console.error(`行 ${update.row}, 列 ${update.col} の更新中にエラー: ${e}`);
+          errorCount++;
+          if (update.col === statusColIndex + 1) successCount--;
+        }
+      });
+    }
+
+    // 結果メッセージを生成
+    let message = "";
+    if (successCount > 0) {
+      message += `${successCount} 冊の本を返却しました。`;
+    }
+    if (notFoundCount > 0) {
+      message += ` ${notFoundCount} 冊の本が見つかりませんでした。`;
+    }
+    if (alreadyReturnedCount > 0) {
+      message += ` ${alreadyReturnedCount} 冊は既に返却済みでした。`;
+    }
+    if (errorCount > 0) {
+      message += ` ${errorCount} 件の更新エラーが発生しました。`;
+    }
+
+    if (successCount === 0 && notFoundCount === 0 && alreadyReturnedCount === 0) {
+      message = "返却処理に失敗しました。選択された本の貸出記録が見つかりませんでした。";
+    }
+
+    console.log("一括返却処理完了:", message);
+    return { 
+      message: message,
+      successCount: successCount,
+      notFoundIds: notFoundIds,
+      alreadyReturnedIds: alreadyReturnedIds
+    };
+    
+  } catch (error) {
+    const errorMsg = `一括返却処理中にエラーが発生しました: ${error}`;
+    console.error(errorMsg);
+    console.error(error);
+    return { message: `返却処理失敗: ${error.message}` };
+  }
+}
+
+// 既存の関数（互換性のため残す）
 function processBulkReturn(bookIds) {
   console.log("一括返却データ受信:", bookIds);
   let successCount = 0;
@@ -978,6 +1181,7 @@ function getUserRentals(userId) {
         const dueDate = row[dueDateColIndex];
         
         const record = {
+          rowNumber: i + 1, // 行番号を追加（1ベース）
           bookId: row[bookIdColIndex] || "",
           bookTitle: row[titleColIndex] || "",
           userId: rowUserId,

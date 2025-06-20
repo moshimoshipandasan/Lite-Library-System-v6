@@ -401,7 +401,7 @@
       }
       /* --- Menu Button --- */
       .menu-button {
-        background-color: #6c757d;
+        background-color: #28a745;
         color: white;
         padding: 30px 60px;
         font-size: 48px;
@@ -409,12 +409,17 @@
         border-radius: 24px;
         cursor: pointer;
         text-decoration: none;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 15px;
         margin: 30px 0;
-        transition: background-color 0.3s;
+        transition: all 0.3s;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
       .menu-button:hover {
-        background-color: #5a6268;
+        background-color: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
       }
       .menu-button-container {
         text-align: center;
@@ -423,7 +428,7 @@
     </style>
   </head>
   <body>
-    <div class="menu-button-container"><a href="#" class="menu-button" id="menu-button-top">メニューに戻る</a></div>
+    <div class="menu-button-container"><a href="#" class="menu-button" id="menu-button-top">← メニューに戻る</a></div>
     <div class="container">
       <h1>貸出書籍検索</h1>
 
@@ -878,13 +883,32 @@
         }, 300);
       }
     </script>
-    <div class="menu-button-container"><a href="#" class="menu-button" id="menu-button-bottom">メニューに戻る</a></div>
+    <div class="menu-button-container"><a href="#" class="menu-button" id="menu-button-bottom">← メニューに戻る</a></div>
     <script>
-      // メニューボタンのURLを設定
-      google.script.run.withSuccessHandler(function(url) {
-        document.getElementById('menu-button-top').href = url;
-        document.getElementById('menu-button-bottom').href = url;
-      }).getWebAppUrl();
+      // メニューボタンのURLを設定（高速化版）
+      (function() {
+        // URLをキャッシュ
+        let cachedUrl = sessionStorage.getItem('webAppUrl');
+        
+        if (cachedUrl) {
+          // キャッシュがあれば即座に設定
+          document.getElementById('menu-button-top').href = cachedUrl;
+          document.getElementById('menu-button-bottom').href = cachedUrl;
+        } else {
+          // キャッシュがない場合は取得してキャッシュに保存
+          google.script.run.withSuccessHandler(function(url) {
+            sessionStorage.setItem('webAppUrl', url);
+            document.getElementById('menu-button-top').href = url;
+            document.getElementById('menu-button-bottom').href = url;
+          }).getWebAppUrl();
+        }
+      })();
+      
+      // ブラウザの戻るボタンを無効化
+      window.history.pushState(null, null, window.location.href);
+      window.addEventListener('popstate', function(event) {
+        window.history.pushState(null, null, window.location.href);
+      });
     </script>
   </body>
 </html>
