@@ -606,10 +606,10 @@
           return;
         }
         
-        // バーコードURL生成
+        // バーコードURL生成（印刷用に高解像度）
         const barcodeUrl = 'https://barcode.tec-it.com/barcode.ashx?data=' + 
                           encodeURIComponent(userId) + 
-                          '&code=Code128&dpi=200&borderwidth=0&bordercolor=FFFFFF&height=12&width=50';
+                          '&code=Code128&dpi=300&borderwidth=0&bordercolor=FFFFFF&height=12&width=50&unit=mm';
         
         // カードHTML生成
         const cardHtml = [
@@ -661,151 +661,47 @@
         // 新しいウィンドウを開く
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         
-        // 印刷用HTMLを作成（文字列結合で作成）
-        const printHtml = [
-          '<!DOCTYPE html>',
-          '<html>',
-          '<head>',
-          '  <meta charset="utf-8">',
-          '  <title>図書カード印刷</title>',
-          '  <style>',
-          '    @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap");',
-          '    @import url("https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap");',
-          '    ',
-          '    body {',
-          '      margin: 0;',
-          '      padding: 20mm;',
-          '      font-family: "Noto Sans JP", sans-serif;',
-          '      background: white;',
-          '    }',
-          '    ',
-          '    .library-card {',
-          '      width: 85.6mm;',
-          '      height: 54mm;',
-          '      border: 2px solid #8b6f4e;',
-          '      border-radius: 5mm;',
-          '      padding: 4mm;',
-          '      box-sizing: border-box;',
-          '      background: linear-gradient(to bottom, #ffffff 0%, #fdfcfb 100%);',
-          '      font-family: "Noto Sans JP", sans-serif;',
-          '      position: relative;',
-          '      margin: 0 auto;',
-          '      display: flex;',
-          '      flex-direction: column;',
-          '      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);',
-          '    }',
-          '    ',
-          '    .library-card::before {',
-          '      content: "";',
-          '      position: absolute;',
-          '      top: 0;',
-          '      left: 0;',
-          '      right: 0;',
-          '      bottom: 0;',
-          '      background-image: repeating-linear-gradient(45deg, transparent, transparent 10mm, rgba(212, 175, 55, 0.03) 10mm, rgba(212, 175, 55, 0.03) 20mm);',
-          '      border-radius: 5mm;',
-          '      pointer-events: none;',
-          '    }',
-          '    ',
-          '    .card-header {',
-          '      text-align: center;',
-          '      border-bottom: 2px solid #d4af37;',
-          '      padding-bottom: 2mm;',
-          '      margin-bottom: 2mm;',
-          '      position: relative;',
-          '      z-index: 1;',
-          '    }',
-          '    ',
-          '    .card-title {',
-          '      font-size: 14pt;',
-          '      font-weight: bold;',
-          '      margin: 0;',
-          '      font-family: "Noto Serif JP", serif;',
-          '      color: #8b6f4e;',
-          '    }',
-          '    ',
-          '    .card-subtitle {',
-          '      font-size: 8pt;',
-          '      margin: 0;',
-          '      color: #8b6f4e;',
-          '      font-style: italic;',
-          '    }',
-          '    ',
-          '    .card-body {',
-          '      flex-grow: 1;',
-          '      display: flex;',
-          '      flex-direction: column;',
-          '      justify-content: space-between;',
-          '    }',
-          '    ',
-          '    .card-info {',
-          '      flex-grow: 1;',
-          '      display: flex;',
-          '      flex-direction: column;',
-          '      justify-content: center;',
-          '      padding: 3mm 0;',
-          '    }',
-          '    ',
-          '    .card-id-name {',
-          '      display: block;',
-          '      font-size: 12pt;',
-          '      white-space: nowrap;',
-          '      overflow: hidden;',
-          '      text-overflow: ellipsis;',
-          '    }',
-          '    ',
-          '    .card-label {',
-          '      font-weight: bold;',
-          '      margin-right: 2mm;',
-          '    }',
-          '    ',
-          '    .card-barcode {',
-          '      display: flex;',
-          '      align-items: center;',
-          '      justify-content: center;',
-          '      height: 15mm;',
-          '      padding: 1mm 0;',
-          '      overflow: hidden;',
-          '    }',
-          '    ',
-          '    .card-barcode img {',
-          '      width: 100%;',
-          '      height: auto;',
-          '      max-height: 12mm;',
-          '      max-width: 60mm;',
-          '      object-fit: contain;',
-          '    }',
-          '    ',
-          '    @media print {',
-          '      body {',
-          '        margin: 0;',
-          '        padding: 0;',
-          '      }',
-          '      .library-card {',
-          '        page-break-inside: avoid;',
-          '      }',
-          '    }',
-          '  </style>',
-          '</head>',
-          '<body>',
-          window.cardData.html,
-          '  <script>',
-          '    // 自動で印刷ダイアログを開く',
-          '    window.onload = function() {',
-          '      window.print();',
-          '      // 印刷後にウィンドウを閉じる',
-          '      window.onafterprint = function() {',
-          '        window.close();',
-          '      };',
-          '    };',
-          '  </scr' + 'ipt>',  // scriptタグを分割
-          '</body>',
-          '</html>'
-        ].join('\n');
+        // 印刷用HTMLを作成（シンプルな文字列連結）
+        let printHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>図書カード印刷</title>';
+        printHtml += '<style>';
+        printHtml += '@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap");';
+        printHtml += '@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap");';
+        printHtml += 'body { margin: 0; padding: 20mm; font-family: "Noto Sans JP", sans-serif; background: white; }';
+        printHtml += '.library-card { width: 85.6mm; height: 54mm; border: 2px solid #8b6f4e; border-radius: 5mm; padding: 4mm; box-sizing: border-box; background: linear-gradient(to bottom, #ffffff 0%, #fdfcfb 100%); font-family: "Noto Sans JP", sans-serif; position: relative; margin: 0 auto; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); }';
+        printHtml += '.library-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: repeating-linear-gradient(45deg, transparent, transparent 10mm, rgba(212, 175, 55, 0.03) 10mm, rgba(212, 175, 55, 0.03) 20mm); border-radius: 5mm; pointer-events: none; }';
+        printHtml += '.card-header { text-align: center; border-bottom: 2px solid #d4af37; padding-bottom: 2mm; margin-bottom: 2mm; position: relative; z-index: 1; }';
+        printHtml += '.card-title { font-size: 14pt; font-weight: bold; margin: 0; font-family: "Noto Serif JP", serif; color: #8b6f4e; }';
+        printHtml += '.card-subtitle { font-size: 8pt; margin: 0; color: #8b6f4e; font-style: italic; }';
+        printHtml += '.card-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 1; }';
+        printHtml += '.card-info { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; padding: 3mm 0; }';
+        printHtml += '.card-id-name { display: block; font-size: 12pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }';
+        printHtml += '.card-label { font-weight: bold; margin-right: 2mm; }';
+        printHtml += '.card-barcode { display: flex; align-items: center; justify-content: center; height: 15mm; padding: 1mm 0; overflow: hidden; }';
+        printHtml += '.card-barcode img { width: 100%; height: auto; max-height: 12mm; max-width: 60mm; object-fit: contain; }';
+        printHtml += '@media print { body { margin: 0; padding: 0; } .library-card { page-break-inside: avoid; } }';
+        printHtml += '</style>';
+        printHtml += '</head><body>';
+        printHtml += window.cardData.html;
+        printHtml += '</body></html>';
+        
+        // デバッグ用
+        console.log('印刷用HTML:', printHtml);
+        console.log('カードデータ:', window.cardData);
         
         // 新しいウィンドウにHTMLを書き込む
+        printWindow.document.open();
         printWindow.document.write(printHtml);
         printWindow.document.close();
+        
+        // 印刷を遅延実行
+        printWindow.onload = function() {
+          setTimeout(function() {
+            printWindow.print();
+            printWindow.onafterprint = function() {
+              printWindow.close();
+            };
+          }, 1000);
+        };
       }
       
       // ステータスメッセージを表示する関数

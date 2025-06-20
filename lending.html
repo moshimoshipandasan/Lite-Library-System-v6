@@ -5,149 +5,238 @@
     <title>図書貸出システム</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap'); /* Google Font Import */
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
 
       /* --- General Styles --- */
       body {
-        font-family: 'Noto Sans JP', sans-serif; /* Google Font適用 */
-        background-color: #f4f4f4; /* 背景色は維持 */
-        color: #333;
+        font-family: 'Noto Sans JP', sans-serif;
+        background: linear-gradient(135deg, #f5f1e8 0%, #e8dfd2 100%);
+        color: #2c3e50;
         margin: 0;
-        padding: 0; /* bodyのpadding削除 */
-        line-height: 1.7; /* 行間を少し広げる */
-        font-size: 48px; /* 基本フォントサイズを3倍に拡大 */
-        -webkit-text-size-adjust: 100%; /* iOSでの自動テキストサイズ調整を防止 */
+        padding: 0;
+        line-height: 1.7;
+        font-size: 48px;
+        -webkit-text-size-adjust: 100%;
+        min-height: 100vh;
+        position: relative;
       }
-      .container {
-        /* max-width: 700px; */ /* 最大幅削除 */
-        /* margin: 20px auto; */ /* 中央寄せマージン削除 */
-        margin: 0;
-        /* padding: 30px; */ /* padding削除 */
-        padding: 45px; /* 左右パディングを3倍に拡大 */
-        background-color: #fff; /* 背景色は維持 */
-        /* border-radius: 8px; */ /* 角丸削除 */
-        /* box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); */ /* 影削除 */
+      
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
-        min-height: 100vh; /* 画面の高さいっぱいに広げる */
-        box-sizing: border-box; /* paddingを含めて幅100% */
+        height: 100%;
+        background-image: 
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 35px,
+            rgba(139, 111, 78, 0.03) 35px,
+            rgba(139, 111, 78, 0.03) 70px
+          );
+        pointer-events: none;
+        z-index: 1;
       }
+      
+      .container {
+        position: relative;
+        z-index: 2;
+        margin: 0;
+        padding: 45px;
+        background-color: rgba(255, 255, 255, 0.95);
+        width: 100%;
+        min-height: 100vh;
+        box-sizing: border-box;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+      }
+      
       h1 {
-        color: #0056b3; /* 図書館らしい青 */
-        margin-top: 0; /* 上マージン調整 */
+        color: #8b6f4e;
+        margin-top: 0;
         text-align: center;
-        margin-bottom: 90px; /* 3倍に拡大 */
-        border-bottom: 6px solid #eee; /* 3倍に拡大 */
-        padding-bottom: 60px; /* 下線とのスペース調整を3倍に拡大 */
-        font-size: 72px; /* 見出しサイズを3倍に拡大 */
+        margin-bottom: 90px;
+        border-bottom: 6px solid #d4af37;
+        padding-bottom: 60px;
+        font-size: 72px;
+        font-family: 'Noto Serif JP', serif;
+        font-weight: 700;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+      
+      h1::before {
+        content: "📚";
+        display: block;
+        font-size: 48px;
+        margin-bottom: 20px;
       }
 
       /* --- Form Styles --- */
       .form-group {
-        margin-bottom: 90px; /* グループ間のスペースを3倍に拡大 */
+        margin-bottom: 90px;
+        background: rgba(255, 255, 255, 0.7);
+        padding: 45px;
+        border-radius: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       }
+      
       label {
         display: block;
-        margin-bottom: 45px; /* ラベル下のスペースを3倍に拡大 */
-        font-weight: 700; /* 太字 */
-        color: #444; /* 少し濃く */
-        font-size: 54px; /* ラベルサイズを3倍に拡大 */
+        margin-bottom: 45px;
+        font-weight: 700;
+        color: #8b6f4e;
+        font-size: 54px;
+        font-family: 'Noto Serif JP', serif;
+        position: relative;
+        padding-left: 60px;
       }
+      
+      label::before {
+        content: "▸";
+        position: absolute;
+        left: 0;
+        color: #d4af37;
+        font-size: 48px;
+      }
+      
       input[type="text"], input[type="number"] {
         width: 100%;
-        padding: 45px; /* 入力欄のパディングを3倍に拡大 */
-        border: 3px solid #aaa; /* 境界線を3倍に拡大 */
-        border-radius: 24px; /* 角丸を3倍に拡大 */
+        padding: 45px;
+        border: 3px solid #d4af37;
+        border-radius: 15px;
         box-sizing: border-box;
-        font-size: 48px; /* 入力欄のフォントサイズを3倍に拡大 */
-        font-family: 'Noto Sans JP', sans-serif; /* フォント継承 */
-        -webkit-appearance: none; /* iOSでの入力欄スタイルをリセット */
+        font-size: 48px;
+        font-family: 'Noto Sans JP', sans-serif;
+        -webkit-appearance: none;
         appearance: none;
+        background: rgba(255, 255, 255, 0.9);
+        transition: all 0.3s ease;
       }
+      
+      input[type="text"]:focus, input[type="number"]:focus {
+        outline: none;
+        border-color: #8b6f4e;
+        box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.2);
+      }
+      
       input[readonly] {
-        background-color: #e9ecef;
+        background-color: #f8f5f0;
         cursor: not-allowed;
+        border-color: #ddd;
       }
       /* 基本ボタンスタイル */
       button {
         color: white;
-        padding: 45px 60px; /* ボタンのパディングを3倍に拡大 */
+        padding: 45px 60px;
         border: none;
-        border-radius: 24px; /* 角丸を3倍に拡大 */
+        border-radius: 50px;
         cursor: pointer;
-        font-size: 48px; /* ボタンのフォントサイズを3倍に拡大 */
-        font-weight: 700; /* ボタン文字を太く */
-        transition: background-color 0.3s ease;
-        margin-top: 45px; /* ボタン間のスペースを3倍に拡大 */
-        font-family: 'Noto Sans JP', sans-serif; /* フォント継承 */
-        -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
-        touch-action: manipulation; /* タッチ操作の最適化 */
-        min-height: 132px; /* タッチターゲットを3倍に拡大 */
-        background-color: #0056b3; /* 基本は青色 */
+        font-size: 48px;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        margin-top: 45px;
+        font-family: 'Noto Sans JP', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        min-height: 132px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        background: linear-gradient(135deg, #8b6f4e 0%, #6d5640 100%);
       }
+      
+      button::before {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+        transform: scale(0);
+        transition: transform 0.5s ease;
+      }
+      
+      button:hover::before {
+        transform: scale(1);
+      }
+      
       button:hover {
-        background-color: #004494;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
       }
+      
       button:disabled {
-        background-color: #cccccc;
-        color: #999999;
+        background: linear-gradient(135deg, #cccccc 0%, #999999 100%);
+        color: #666666;
         cursor: not-allowed;
         opacity: 0.7;
-        border: 3px solid #bbbbbb; /* 3倍に拡大 */
         box-shadow: none;
       }
       
       /* 機能別ボタン */
       /* 補助ボタン - スキャン・検索用 */
       .btn-utility, #scan-book-id-button, #scan-user-button {
-        padding: 36px 60px; /* スキャンボタンのパディングを3倍に拡大 */
-        background-color: #6c757d; /* グレー系 */
-        margin-right: 30px; /* 3倍に拡大 */
-        font-size: 48px; /* フォントサイズを3倍に拡大 */
-        font-weight: 400; /* 通常の太さ */
+        padding: 36px 60px;
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        margin-right: 30px;
+        font-size: 48px;
+        font-weight: 400;
       }
       .btn-utility:hover, #scan-book-id-button:hover, #scan-user-button:hover {
-        background-color: #5a6268;
-      }
-      .btn-utility:disabled, #scan-book-id-button:disabled, #scan-user-button:disabled {
-        background-color: #cccccc;
+        background: linear-gradient(135deg, #495057 0%, #343a40 100%);
       }
       
       /* アクションボタン - 登録・貸出用 */
       .btn-action, button[onclick="submitForm()"],
-      button[onclick="fetchLendingInfo()"], /* 他のHTML用 */
-      button[onclick="searchRentalRecords()"] /* 他のHTML用 */ {
-        display: block; /* ブロック要素にして幅を100%に */
+      button[onclick="fetchLendingInfo()"],
+      button[onclick="searchRentalRecords()"] {
+        display: block;
         width: 100%;
-        margin-top: 75px; /* 3倍に拡大 */
-        background-color: #28a745; /* 緑色 - 成功の色 */
-        padding: 45px 60px; /* ボタンのパディングを3倍に拡大 */
-        font-size: 54px; /* ボタン文字サイズを3倍に拡大 */
-        min-height: 150px; /* タッチターゲットを3倍に拡大 */
+        margin-top: 75px;
+        background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
+        padding: 45px 60px;
+        font-size: 54px;
+        min-height: 150px;
+        position: relative;
       }
+      
+      .btn-action::after, button[onclick="submitForm()"]::after {
+        content: "📋";
+        position: absolute;
+        right: 60px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 60px;
+      }
+      
       .btn-action:hover, button[onclick="submitForm()"]:hover,
       button[onclick="fetchLendingInfo()"]:hover,
       button[onclick="searchRentalRecords()"]:hover {
-        background-color: #218838;
+        background: linear-gradient(135deg, #b8941f 0%, #9a7a19 100%);
       }
       
-      /* 検索ボタンを青色に */
+      /* 検索ボタン */
       #search-user-button, #search-book-button {
-        background-color: #0056b3; /* 青色に統一 */
+        background: linear-gradient(135deg, #4e7b8b 0%, #405d6d 100%);
       }
       #search-user-button:hover, #search-book-button:hover {
-        background-color: #004494;
+        background: linear-gradient(135deg, #405d6d 0%, #334a56 100%);
       }
       
       /* 危険ボタン - 返却・キャンセル用 */
       .btn-danger, .cancel-button {
-        background-color: #dc3545; /* 赤色系 */
-        margin-top: 45px; /* 3倍に拡大 */
-        padding: 45px 60px; /* 3倍に拡大 */
-        font-size: 48px; /* 3倍に拡大 */
-        min-height: 132px; /* タッチターゲットを3倍に拡大 */
+        background: linear-gradient(135deg, #8b5a4e 0%, #6d4640 100%);
+        margin-top: 45px;
+        padding: 45px 60px;
+        font-size: 48px;
+        min-height: 132px;
       }
       .btn-danger:hover, .cancel-button:hover {
-        background-color: #c82333;
+        background: linear-gradient(135deg, #6d4640 0%, #5a3a35 100%);
       }
       
       /* ボタングループ */
@@ -262,12 +351,12 @@
 
       /* --- Menu Button --- */
       .menu-button {
-        background-color: #28a745;
+        background: linear-gradient(135deg, #8b6f4e 0%, #6d5640 100%);
         color: white;
         padding: 30px 60px;
         font-size: 48px;
         border: none;
-        border-radius: 24px;
+        border-radius: 50px;
         cursor: pointer;
         text-decoration: none;
         display: inline-flex;
@@ -275,33 +364,47 @@
         gap: 15px;
         margin: 30px 0;
         transition: all 0.3s;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        font-weight: 700;
       }
       .menu-button:hover {
-        background-color: #218838;
+        background: linear-gradient(135deg, #6d5640 0%, #5a4635 100%);
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
       }
       .menu-button-container {
         text-align: center;
         margin: 30px 0;
+        position: relative;
+        z-index: 2;
       }
 
       /* --- Message Area --- */
       #message {
-        margin-top: 90px; /* 上マージン調整を3倍に拡大 */
-        font-weight: 700; /* 太字 */
-        padding: 45px; /* パディング調整を3倍に拡大 */
-        border-radius: 24px; /* 3倍に拡大 */
+        margin-top: 90px;
+        font-weight: 700;
+        padding: 45px;
+        border-radius: 20px;
         text-align: center;
-        font-size: 48px; /* メッセージ文字サイズを3倍に拡大 */
+        font-size: 48px;
+        position: relative;
+        overflow: hidden;
       }
       /* メッセージの種類に応じてスタイルを変える（例） */
-      #message:not(:empty) { /* メッセージがある時だけ表示 */
+      #message:not(:empty) {
          display: block;
-         background-color: #e2f3ff; /* 情報メッセージの背景 */
-         border: 3px solid #b8dffc; /* 3倍に拡大 */
+         background: linear-gradient(135deg, #e2f3ff 0%, #d6ecff 100%);
+         border: 3px solid #b8dffc;
          color: #0056b3;
+         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      #message:not(:empty)::before {
+         content: "ℹ️";
+         position: absolute;
+         left: 45px;
+         top: 50%;
+         transform: translateY(-50%);
+         font-size: 60px;
       }
       
       /* --- 書籍リストテーブルスタイル --- */

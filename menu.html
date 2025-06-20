@@ -4,6 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
   <style>
     /* モバイル最適化された共通スタイル */
     * {
@@ -15,20 +16,65 @@
       font-family: 'Noto Sans JP', sans-serif;
       margin: 0;
       padding: 45px;
-      background-color: #f5f5f5;
+      background: linear-gradient(135deg, #f5f1e8 0%, #e8dfd2 100%);
       font-size: 48px;
       line-height: 1.6;
-      color: #333;
+      color: #2c3e50;
       touch-action: manipulation;
       -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      position: relative;
+    }
+    
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 35px,
+          rgba(139, 111, 78, 0.03) 35px,
+          rgba(139, 111, 78, 0.03) 70px
+        );
+      pointer-events: none;
+      z-index: 1;
     }
     
     h1 {
-      font-size: 72px;
+      font-size: 84px;
       font-weight: bold;
       text-align: center;
       margin: 0 0 90px 0;
-      color: #2c3e50;
+      color: #8b6f4e;
+      font-family: 'Noto Serif JP', serif;
+      text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 2;
+      padding-bottom: 60px;
+      border-bottom: 6px solid #d4af37;
+    }
+    
+    h1::before {
+      content: "📚";
+      display: block;
+      font-size: 96px;
+      margin-bottom: 30px;
+    }
+    
+    h1::after {
+      content: "Library Management System";
+      display: block;
+      font-size: 36px;
+      font-weight: 400;
+      color: #a08060;
+      margin-top: 20px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-style: italic;
     }
     
     /* メニューコンテナ */
@@ -38,30 +84,52 @@
       gap: 45px;
       max-width: 1200px;
       margin: 0 auto;
+      position: relative;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 60px;
+      border-radius: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     }
     
     /* 統一されたボタンスタイル */
     .menu-button {
       display: flex;
       width: 100%;
-      padding: 30px 60px;
+      padding: 45px 60px;
       font-size: 48px;
       font-weight: bold;
       text-decoration: none;
       color: white;
       border: none;
-      border-radius: 30px;
+      border-radius: 25px;
       cursor: pointer;
       transition: all 0.3s ease;
       text-align: left;
       position: relative;
       overflow: hidden;
-      min-height: 90px;
+      min-height: 120px;
       flex-direction: row;
       align-items: center;
       justify-content: flex-start;
-      gap: 30px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      gap: 40px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .menu-button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .menu-button:hover::before {
+      opacity: 1;
     }
     
     .menu-button:active {
@@ -70,60 +138,115 @@
     }
     
     .menu-button:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+      transform: translateY(-5px);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.2);
     }
     
     /* ボタンのカラースキーム */
     .checkout {
-      background-color: #28a745;
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      background: linear-gradient(135deg, #8b6f4e 0%, #6d5640 100%);
     }
     
     .return {
-      background-color: #007bff;
-      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      background: linear-gradient(135deg, #7b8b4e 0%, #5d6d40 100%);
     }
     
     .finder {
-      background-color: #ffc107;
-      background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+      background: linear-gradient(135deg, #d4af37 0%, #b8941f 100%);
     }
     
     .user-returns {
-      background-color: #6f42c1;
-      background: linear-gradient(135deg, #6f42c1 0%, #563d7c 100%);
+      background: linear-gradient(135deg, #a67c52 0%, #8a6344 100%);
     }
     
     .register {
-      background-color: #dc3545;
-      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      background: linear-gradient(135deg, #8b5a4e 0%, #6d4640 100%);
     }
     
     .user-register {
-      background-color: #17a2b8;
-      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+      background: linear-gradient(135deg, #4e7b8b 0%, #405d6d 100%);
     }
     
     .card-issue {
-      background-color: #fd7e14;
-      background: linear-gradient(135deg, #fd7e14 0%, #dc6502 100%);
+      background: linear-gradient(135deg, #c49a37 0%, #a88123 100%);
+    }
+    
+    .user-edit {
+      background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    }
+    
+    .book-edit {
+      background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+    }
+    
+    .settings {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+    
+    .overdue {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+    
+    .statistics {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    }
+    
+    .history {
+      background: linear-gradient(135deg, #795548 0%, #5d4037 100%);
+    }
+    
+    .inventory {
+      background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
     }
     
     /* メニューアイコン */
     .menu-icon {
-      font-size: 60px;
+      font-size: 72px;
       margin-bottom: 0;
       display: block;
       flex-shrink: 0;
+      filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.2));
+    }
+    
+    /* メニューテキスト */
+    .menu-text {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .menu-title {
+      font-size: 48px;
+      font-weight: bold;
+      font-family: 'Noto Serif JP', serif;
+    }
+    
+    .menu-description {
+      font-size: 32px;
+      opacity: 0.9;
+      font-weight: normal;
     }
     
     /* ローディング状態 */
     .loading {
       text-align: center;
-      color: #666;
+      color: #8b6f4e;
       padding: 60px;
       font-size: 48px;
+      font-family: 'Noto Serif JP', serif;
+    }
+    
+    .loading::before {
+      content: "📖";
+      display: block;
+      font-size: 72px;
+      margin-bottom: 30px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
     }
     
     /* タブレット・小型デバイス対応 */
@@ -138,8 +261,17 @@
         margin-bottom: 60px;
       }
       
+      h1::before {
+        font-size: 72px;
+      }
+      
+      h1::after {
+        font-size: 28px;
+      }
+      
       .menu-container {
         gap: 30px;
+        padding: 40px;
       }
       
       .menu-button {
@@ -196,13 +328,20 @@
     // WebアプリのURLを取得してメニューリンクを生成
     google.script.run.withSuccessHandler(function(baseUrl) {
       const menuItems = [
-        { page: 'checkout', icon: '📚', text: '図書貸出', class: 'checkout' },
-        { page: 'return', icon: '📖', text: '図書返却', class: 'return' },
-        { page: 'user_returns', icon: '👤', text: '利用者別返却', class: 'user-returns' },
-        { page: 'finder', icon: '🔍', text: '貸出書籍検索', class: 'finder' },
-        { page: 'register', icon: '➕', text: '書籍登録', class: 'register' },
-        { page: 'user_register', icon: '👥', text: '利用者登録', class: 'user-register' },
-        { page: 'card_issue', icon: '🎫', text: '図書カード発行', class: 'card-issue' }
+        { page: 'checkout', icon: '📚', text: '図書貸出', desc: '書籍の貸出処理', class: 'checkout' },
+        { page: 'return', icon: '📖', text: '図書返却', desc: '書籍の返却処理', class: 'return' },
+        { page: 'user_returns', icon: '👤', text: '利用者別返却', desc: '利用者ごとの返却', class: 'user-returns' },
+        { page: 'finder', icon: '🔍', text: '貸出書籍検索', desc: '貸出中の書籍を検索', class: 'finder' },
+        { page: 'register', icon: '➕', text: '書籍登録', desc: '新しい書籍を登録', class: 'register' },
+        { page: 'user_register', icon: '👥', text: '利用者登録', desc: '新規利用者を登録', class: 'user-register' },
+        { page: 'card_issue', icon: '🎫', text: '図書カード発行', desc: '利用者カードを発行', class: 'card-issue' },
+        { page: 'user_edit', icon: '✏️', text: '利用者情報編集', desc: '利用者情報の変更・削除', class: 'user-edit' },
+        { page: 'book_edit', icon: '📝', text: '書籍情報編集', desc: '書籍情報の変更・削除', class: 'book-edit' },
+        { page: 'inventory', icon: '📚', text: '書籍在庫管理', desc: '蔵書の状態を確認', class: 'inventory' },
+        { page: 'history', icon: '📜', text: '貸出履歴検索', desc: '過去の貸出履歴を検索', class: 'history' },
+        { page: 'overdue', icon: '⏰', text: '延滞者リスト', desc: '延滞中の書籍を確認', class: 'overdue' },
+        { page: 'statistics', icon: '📊', text: '貸出統計', desc: '利用状況を分析', class: 'statistics' },
+        { page: 'settings', icon: '⚙️', text: '図書館設定', desc: '貸出期間などの設定', class: 'settings' }
       ];
 
       let menuHtml = '';
@@ -210,7 +349,10 @@
         menuHtml += `
           <a href="${baseUrl}?page=${item.page}" class="menu-button ${item.class}">
             <span class="menu-icon">${item.icon}</span>
-            ${item.text}
+            <div class="menu-text">
+              <div class="menu-title">${item.text}</div>
+              <div class="menu-description">${item.desc}</div>
+            </div>
           </a>
         `;
       });
@@ -219,36 +361,36 @@
     }).withFailureHandler(function(error) {
       console.error('Error:', error);
       // エラー時は相対URLを使用
-      document.getElementById('menuContainer').innerHTML = `
-        <a href="?page=checkout" class="menu-button checkout">
-          <span class="menu-icon">📚</span>
-          図書貸出
-        </a>
-        <a href="?page=return" class="menu-button return">
-          <span class="menu-icon">📖</span>
-          図書返却
-        </a>
-        <a href="?page=user_returns" class="menu-button user-returns">
-          <span class="menu-icon">👤</span>
-          利用者別返却
-        </a>
-        <a href="?page=finder" class="menu-button finder">
-          <span class="menu-icon">🔍</span>
-          貸出書籍検索
-        </a>
-        <a href="?page=register" class="menu-button register">
-          <span class="menu-icon">➕</span>
-          書籍登録
-        </a>
-        <a href="?page=user_register" class="menu-button user-register">
-          <span class="menu-icon">👥</span>
-          利用者登録
-        </a>
-        <a href="?page=card_issue" class="menu-button card-issue">
-          <span class="menu-icon">🎫</span>
-          図書カード発行
-        </a>
-      `;
+      const errorMenuItems = [
+        { page: 'checkout', icon: '📚', text: '図書貸出', desc: '書籍の貸出処理', class: 'checkout' },
+        { page: 'return', icon: '📖', text: '図書返却', desc: '書籍の返却処理', class: 'return' },
+        { page: 'user_returns', icon: '👤', text: '利用者別返却', desc: '利用者ごとの返却', class: 'user-returns' },
+        { page: 'finder', icon: '🔍', text: '貸出書籍検索', desc: '貸出中の書籍を検索', class: 'finder' },
+        { page: 'register', icon: '➕', text: '書籍登録', desc: '新しい書籍を登録', class: 'register' },
+        { page: 'user_register', icon: '👥', text: '利用者登録', desc: '新規利用者を登録', class: 'user-register' },
+        { page: 'card_issue', icon: '🎫', text: '図書カード発行', desc: '利用者カードを発行', class: 'card-issue' },
+        { page: 'user_edit', icon: '✏️', text: '利用者情報編集', desc: '利用者情報の変更・削除', class: 'user-edit' },
+        { page: 'book_edit', icon: '📝', text: '書籍情報編集', desc: '書籍情報の変更・削除', class: 'book-edit' },
+        { page: 'inventory', icon: '📚', text: '書籍在庫管理', desc: '蔵書の状態を確認', class: 'inventory' },
+        { page: 'history', icon: '📜', text: '貸出履歴検索', desc: '過去の貸出履歴を検索', class: 'history' },
+        { page: 'overdue', icon: '⏰', text: '延滞者リスト', desc: '延滞中の書籍を確認', class: 'overdue' },
+        { page: 'statistics', icon: '📊', text: '貸出統計', desc: '利用状況を分析', class: 'statistics' },
+        { page: 'settings', icon: '⚙️', text: '図書館設定', desc: '貸出期間などの設定', class: 'settings' }
+      ];
+      
+      let errorMenuHtml = '';
+      errorMenuItems.forEach(item => {
+        errorMenuHtml += `
+          <a href="?page=${item.page}" class="menu-button ${item.class}">
+            <span class="menu-icon">${item.icon}</span>
+            <div class="menu-text">
+              <div class="menu-title">${item.text}</div>
+              <div class="menu-description">${item.desc}</div>
+            </div>
+          </a>
+        `;
+      });
+      document.getElementById('menuContainer').innerHTML = errorMenuHtml;
     }).getWebAppUrl();
   </script>
 </body>

@@ -38,6 +38,34 @@ function doGet(e) {
         page = 'card_issue';
         title = '図書カード発行システム';
         break;
+      case 'settings':
+        page = 'settings';
+        title = '図書館設定';
+        break;
+      case 'overdue':
+        page = 'overdue_list';
+        title = '延滞者リスト';
+        break;
+      case 'statistics':
+        page = 'statistics';
+        title = '貸出統計';
+        break;
+      case 'history':
+        page = 'lending_history';
+        title = '貸出履歴検索';
+        break;
+      case 'inventory':
+        page = 'inventory';
+        title = '書籍在庫管理';
+        break;
+      case 'user_edit':
+        page = 'user_edit';
+        title = '利用者情報編集';
+        break;
+      case 'book_edit':
+        page = 'book_edit';
+        title = '書籍情報編集';
+        break;
       default:
         // デフォルトはメニューページのまま
         break;
@@ -171,9 +199,20 @@ function processLendingForm(formData) {
 
     const lendingDate = new Date(); // 現在日時を貸出日時とする
 
+    // 設定から貸出期間を取得
+    let lendingDays = 14; // デフォルト値
+    try {
+      const settings = getLibrarySettings();
+      if (settings && settings.lendingDays) {
+        lendingDays = settings.lendingDays;
+      }
+    } catch (e) {
+      console.log("設定の取得に失敗したため、デフォルトの貸出期間を使用します:", e);
+    }
+
     // スプレッドシートに追記するデータ配列
     // ヘッダー: 書籍ID, 書籍名, 利用者ID, 利用者名, 貸出日時, 返却予定日, 返却状況
-    const dueDate = new Date(lendingDate.getTime() + 14 * 24 * 60 * 60 * 1000); // 貸出日から2週間後
+    const dueDate = new Date(lendingDate.getTime() + lendingDays * 24 * 60 * 60 * 1000); // 貸出日から設定日数後
     const returnStatus = "未返却"; // 初期状態
 
     const newRow = [
@@ -456,6 +495,22 @@ function processReturnForm(bookId) { // Changed parameter name
  */
  function sendOverdueReminders() {
    console.log("延滞リマインダー処理開始");
+   
+   // 設定を取得
+   let settings;
+   try {
+     settings = getLibrarySettings();
+   } catch (e) {
+     console.error("設定の取得に失敗しました:", e);
+     settings = {}; // デフォルト値を使用
+   }
+   
+   // メール通知が無効の場合は処理をスキップ
+   if (settings.enableOverdue === false) {
+     console.log("延滞通知が無効になっているため、処理をスキップします。");
+     return;
+   }
+   
    const ss = SpreadsheetApp.getActiveSpreadsheet();
    const lendingSheet = ss.getSheetByName("貸出記録");
    const userSheet = ss.getSheetByName("利用者DB"); // getUserInfo内で使用 & 存在チェック
@@ -507,13 +562,14 @@ function processReturnForm(bookId) { // Changed parameter name
 
             if (userInfo && userInfo.email) {
               const recipient = userInfo.email;
-              const subject = `【図書館】書籍返却のお願い: ${bookTitle}`;
+              const libraryName = settings.libraryName || "図書館";
+              const subject = `【${libraryName}】書籍返却のお願い: ${bookTitle}`;
               const body = `${userInfo.name} 様\n\n`
-                         + `いつも図書館をご利用いただきありがとうございます。\n\n`
+                         + `いつも${libraryName}をご利用いただきありがとうございます。\n\n`
                          + `貸出中の書籍『${bookTitle}』の返却期限（${dueDateString}）が過ぎています。\n`
                          + `ご確認の上、速やかにご返却いただけますようお願いいたします。\n\n`
-                         + `ご不明な点がございましたら、図書館カウンターまでお問い合わせください。\n\n`
-                         + `--\n図書貸出システム`;
+                         + `ご不明な点がございましたら、${libraryName}カウンターまでお問い合わせください。\n\n`
+                         + `--\n${libraryName}図書管理システム`;
 
               // メールの送信量を確認 (クォータ対策)
               if (MailApp.getRemainingDailyQuota() > 0) {
@@ -1076,8 +1132,19 @@ function processBulkLending(bulkData) {
       }
     }
 
+    // 設定から貸出期間を取得
+    let lendingDays = 14; // デフォルト値
+    try {
+      const settings = getLibrarySettings();
+      if (settings && settings.lendingDays) {
+        lendingDays = settings.lendingDays;
+      }
+    } catch (e) {
+      console.log("設定の取得に失敗したため、デフォルトの貸出期間を使用します:", e);
+    }
+
     const lendingDate = new Date(); // 現在日時を貸出日時とする
-    const dueDate = new Date(lendingDate.getTime() + 14 * 24 * 60 * 60 * 1000); // 貸出日から2週間後
+    const dueDate = new Date(lendingDate.getTime() + lendingDays * 24 * 60 * 60 * 1000); // 貸出日から設定日数後
     const returnStatus = "未返却"; // 初期状態
 
     const rowsToAdd = [];
@@ -1341,6 +1408,245 @@ function registerBook(bookData) {
   } catch (error) {
     console.error(`書籍登録中にエラーが発生しました: ${error}`);
     return { success: false, message: `書籍登録中にエラーが発生しました: ${error.message}` };
+  }
+}
+
+/**
+ * 利用者の詳細情報を取得する関数
+ * @param {string} userId - 利用者ID
+ * @return {object|null} 利用者情報オブジェクト
+ */
+function getUserDetails(userId) {
+  if (!userId) {
+    console.error("利用者IDが指定されていません。");
+    return null;
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName("利用者DB");
+    if (!userSheet) {
+      console.error("利用者DBシートが見つかりません。");
+      return null;
+    }
+    
+    const data = userSheet.getDataRange().getValues();
+    const userIdColIndex = 0; // A列
+    const nameColIndex = 1; // B列
+    const emailColIndex = 2; // C列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      if (rowUserId.toLowerCase() === userId.trim().toLowerCase()) {
+        // 追加のカラムがある場合の取得
+        const phoneColIndex = 3; // D列（電話番号）
+        const addressColIndex = 4; // E列（住所）
+        const registrationDateColIndex = 5; // F列（登録日）
+        
+        return {
+          userId: rowUserId,
+          name: data[i][nameColIndex] || "",
+          email: data[i][emailColIndex] || "",
+          phone: data[i][phoneColIndex] || "",
+          address: data[i][addressColIndex] || "",
+          registrationDate: data[i][registrationDateColIndex] || new Date(),
+          lastUseDate: getLastUseDate(userId) // 最終利用日を取得
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`利用者情報の取得中にエラーが発生しました: ${error}`);
+    throw new Error(`利用者情報の取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 利用者の最終利用日を取得する関数
+ * @param {string} userId - 利用者ID
+ * @return {Date|null} 最終利用日
+ */
+function getLastUseDate(userId) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (!lendingSheet) return null;
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const userIdColIndex = 2; // C列
+    const lendingDateColIndex = 4; // E列
+    
+    let lastDate = null;
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      if (rowUserId.toLowerCase() === userId.trim().toLowerCase()) {
+        const lendingDate = data[i][lendingDateColIndex];
+        if (lendingDate instanceof Date && (!lastDate || lendingDate > lastDate)) {
+          lastDate = lendingDate;
+        }
+      }
+    }
+    
+    return lastDate;
+  } catch (error) {
+    console.error(`最終利用日の取得中にエラーが発生しました: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * 利用者の貸出履歴を取得する関数
+ * @param {string} userId - 利用者ID
+ * @return {Array} 貸出履歴の配列
+ */
+function getUserLendingHistory(userId) {
+  if (!userId) return [];
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (!lendingSheet) return [];
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const userIdColIndex = 2; // C列
+    const history = [];
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      if (rowUserId.toLowerCase() === userId.trim().toLowerCase()) {
+        history.push({
+          bookId: data[i][0] || "",
+          bookTitle: data[i][1] || "",
+          lendingDate: data[i][4] || "",
+          dueDate: data[i][5] || "",
+          status: data[i][6] || "",
+          returnDate: data[i][7] || ""
+        });
+      }
+    }
+    
+    // 貸出日の降順でソート
+    history.sort((a, b) => {
+      const dateA = new Date(a.lendingDate);
+      const dateB = new Date(b.lendingDate);
+      return dateB - dateA;
+    });
+    
+    return history;
+  } catch (error) {
+    console.error(`貸出履歴の取得中にエラーが発生しました: ${error}`);
+    return [];
+  }
+}
+
+/**
+ * 利用者情報を更新する関数
+ * @param {object} userData - 更新する利用者データ
+ * @return {boolean} 更新成功の可否
+ */
+function updateUserInfo(userData) {
+  if (!userData || !userData.userId) {
+    throw new Error("利用者IDが指定されていません。");
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName("利用者DB");
+    if (!userSheet) {
+      throw new Error("利用者DBシートが見つかりません。");
+    }
+    
+    const data = userSheet.getDataRange().getValues();
+    const userIdColIndex = 0; // A列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      if (rowUserId.toLowerCase() === userData.userId.trim().toLowerCase()) {
+        // 既存の登録日を保持
+        const registrationDate = data[i][5] || new Date();
+        
+        // 更新する行のデータを作成
+        const updatedRow = [
+          rowUserId, // 利用者ID（変更不可）
+          userData.name || "",
+          userData.email || "",
+          userData.phone || "",
+          userData.address || "",
+          registrationDate
+        ];
+        
+        // 行を更新
+        userSheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+        console.log(`利用者情報を更新しました: ${userData.userId}`);
+        return true;
+      }
+    }
+    
+    throw new Error("指定された利用者IDが見つかりません。");
+  } catch (error) {
+    console.error(`利用者情報の更新中にエラーが発生しました: ${error}`);
+    throw new Error(`利用者情報の更新に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 利用者を削除する関数
+ * @param {string} userId - 削除する利用者ID
+ * @return {boolean} 削除成功の可否
+ */
+function deleteUser(userId) {
+  if (!userId) {
+    throw new Error("利用者IDが指定されていません。");
+  }
+  
+  try {
+    // まず貸出中の書籍がないか確認
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (lendingSheet) {
+      const lendingData = lendingSheet.getDataRange().getValues();
+      const userIdColIndex = 2; // C列
+      const statusColIndex = 6; // G列
+      
+      for (let i = 1; i < lendingData.length; i++) {
+        const rowUserId = lendingData[i][userIdColIndex] ? lendingData[i][userIdColIndex].toString().trim() : "";
+        const status = lendingData[i][statusColIndex];
+        if (rowUserId.toLowerCase() === userId.trim().toLowerCase() && status === "未返却") {
+          throw new Error("貸出中の書籍があるため、利用者を削除できません。");
+        }
+      }
+    }
+    
+    // 利用者DBから削除
+    const userSheet = ss.getSheetByName("利用者DB");
+    if (!userSheet) {
+      throw new Error("利用者DBシートが見つかりません。");
+    }
+    
+    const data = userSheet.getDataRange().getValues();
+    const userIdColIndex = 0; // A列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      if (rowUserId.toLowerCase() === userId.trim().toLowerCase()) {
+        // 行を削除
+        userSheet.deleteRow(i + 1);
+        console.log(`利用者を削除しました: ${userId}`);
+        return true;
+      }
+    }
+    
+    throw new Error("指定された利用者IDが見つかりません。");
+  } catch (error) {
+    console.error(`利用者の削除中にエラーが発生しました: ${error}`);
+    throw new Error(`利用者の削除に失敗しました: ${error.message}`);
   }
 }
 
@@ -1691,7 +1997,16 @@ function registerUser(userData) {
     
     // メールが入力されている場合は登録完了メールを送信
     if (userData.userEmail) {
-      sendRegistrationEmail(userData);
+      // 設定を確認
+      try {
+        const settings = getLibrarySettings();
+        if (settings.enableEmail !== false) {
+          sendRegistrationEmail(userData);
+        }
+      } catch (e) {
+        // 設定取得に失敗してもメールは送信する（デフォルト動作）
+        sendRegistrationEmail(userData);
+      }
     }
     
     return { success: true, message: `利用者「${userData.userName}」を登録しました。利用者ID: ${userData.userId}` };
@@ -1707,12 +2022,23 @@ function registerUser(userData) {
  */
 function sendRegistrationEmail(userData) {
   try {
-    const subject = "図書館利用者登録完了のお知らせ";
+    // 設定から図書館名を取得
+    let libraryName = "図書館";
+    try {
+      const settings = getLibrarySettings();
+      if (settings.libraryName) {
+        libraryName = settings.libraryName;
+      }
+    } catch (e) {
+      // デフォルト値を使用
+    }
+    
+    const subject = `${libraryName}利用者登録完了のお知らせ`;
     
     const body = `
 ${userData.userName} 様
 
-この度は、図書館システムにご登録いただきありがとうございます。
+この度は、${libraryName}システムにご登録いただきありがとうございます。
 以下の内容で利用者登録が完了しました。
 
 【登録情報】
@@ -1726,7 +2052,7 @@ ${userData.userName} 様
 
 今後ともよろしくお願いいたします。
 
-図書館管理システム
+${libraryName}管理システム
 `;
 
     GmailApp.sendEmail(userData.userEmail, subject, body);
@@ -1734,5 +2060,1153 @@ ${userData.userName} 様
   } catch (error) {
     console.error(`メール送信中にエラーが発生しました: ${error}`);
     // メール送信に失敗しても登録は成功とする
+  }
+}
+
+/**
+ * 図書館の設定情報を取得する関数
+ * @return {object} 設定情報オブジェクト
+ */
+function getLibrarySettings() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let settingsSheet = ss.getSheetByName("設定DB");
+    
+    // 設定DBシートが存在しない場合は作成
+    if (!settingsSheet) {
+      settingsSheet = ss.insertSheet("設定DB");
+      
+      // ヘッダー行を設定
+      const headers = [
+        ["設定項目", "設定値", "説明", "更新日時"]
+      ];
+      settingsSheet.getRange(1, 1, 1, 4).setValues(headers);
+      settingsSheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#f3f3f3");
+      
+      // デフォルト設定を追加
+      const defaultSettings = [
+        ["lendingDays", "14", "貸出期間（日数）", new Date()],
+        ["maxBooks", "5", "一人あたりの最大貸出冊数", new Date()],
+        ["reminderDays", "3", "返却リマインダー（日前）", new Date()],
+        ["enableEmail", "true", "メール通知を有効にする", new Date()],
+        ["enableOverdue", "true", "延滞通知を有効にする", new Date()],
+        ["libraryEmail", "", "図書館メールアドレス", new Date()],
+        ["libraryName", "", "図書館名", new Date()],
+        ["operationMode", "normal", "運用モード", new Date()]
+      ];
+      
+      settingsSheet.getRange(2, 1, defaultSettings.length, 4).setValues(defaultSettings);
+      settingsSheet.autoResizeColumns(1, 4);
+    }
+    
+    // 設定データを取得
+    const data = settingsSheet.getDataRange().getValues();
+    const settings = {};
+    
+    // ヘッダー行を除いて設定を読み込む
+    for (let i = 1; i < data.length; i++) {
+      const settingName = data[i][0];
+      const settingValue = data[i][1];
+      
+      if (settingName) {
+        // boolean値の変換
+        if (settingValue === "true") {
+          settings[settingName] = true;
+        } else if (settingValue === "false") {
+          settings[settingName] = false;
+        } else if (!isNaN(settingValue) && settingValue !== "") {
+          // 数値の変換
+          settings[settingName] = Number(settingValue);
+        } else {
+          // 文字列としてそのまま使用
+          settings[settingName] = settingValue;
+        }
+      }
+    }
+    
+    console.log("設定取得成功:", settings);
+    return settings;
+    
+  } catch (error) {
+    console.error(`設定の取得中にエラーが発生しました: ${error}`);
+    throw new Error(`設定の取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 図書館の設定情報を保存する関数
+ * @param {object} settings - 設定情報オブジェクト
+ * @return {object} 処理結果 {success: boolean, message: string}
+ */
+function saveLibrarySettings(settings) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let settingsSheet = ss.getSheetByName("設定DB");
+    
+    if (!settingsSheet) {
+      // 設定DBシートが存在しない場合は作成
+      getLibrarySettings(); // この関数内でシートが作成される
+      settingsSheet = ss.getSheetByName("設定DB");
+    }
+    
+    // 現在のデータを取得
+    const data = settingsSheet.getDataRange().getValues();
+    const currentDate = new Date();
+    
+    // 設定項目ごとに更新
+    for (const [key, value] of Object.entries(settings)) {
+      let found = false;
+      
+      // 既存の設定を探して更新
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === key) {
+          // 設定値と更新日時を更新
+          settingsSheet.getRange(i + 1, 2).setValue(String(value));
+          settingsSheet.getRange(i + 1, 4).setValue(currentDate);
+          found = true;
+          break;
+        }
+      }
+      
+      // 新しい設定項目の場合は追加
+      if (!found) {
+        const description = getSettingDescription(key);
+        settingsSheet.appendRow([key, String(value), description, currentDate]);
+      }
+    }
+    
+    console.log("設定保存成功:", settings);
+    return { success: true, message: "設定を保存しました。" };
+    
+  } catch (error) {
+    console.error(`設定の保存中にエラーが発生しました: ${error}`);
+    return { success: false, message: `設定の保存に失敗しました: ${error.message}` };
+  }
+}
+
+/**
+ * 設定項目の説明を取得する補助関数
+ * @param {string} key - 設定項目のキー
+ * @return {string} 設定項目の説明
+ */
+function getSettingDescription(key) {
+  const descriptions = {
+    lendingDays: "貸出期間（日数）",
+    maxBooks: "一人あたりの最大貸出冊数",
+    reminderDays: "返却リマインダー（日前）",
+    enableEmail: "メール通知を有効にする",
+    enableOverdue: "延滞通知を有効にする",
+    libraryEmail: "図書館メールアドレス",
+    libraryName: "図書館名",
+    operationMode: "運用モード"
+  };
+  
+  return descriptions[key] || "";
+}
+
+/**
+ * 延滞者リストを取得する関数
+ * @return {Array} 延滞者情報の配列
+ */
+function getOverdueList() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    
+    if (!lendingSheet) {
+      throw new Error("貸出記録シートが見つかりません。");
+    }
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 時刻部分をリセット
+    
+    // ヘッダー: A:書籍ID, B:書籍名, C:利用者ID, D:利用者名, E:貸出日時, F:返却予定日, G:返却状況
+    const bookIdColIndex = 0;     // A列
+    const titleColIndex = 1;      // B列
+    const userIdColIndex = 2;     // C列
+    const userNameColIndex = 3;   // D列
+    const lendingDateColIndex = 4;// E列
+    const dueDateColIndex = 5;    // F列
+    const statusColIndex = 6;     // G列
+    
+    const overdueList = [];
+    
+    // ヘッダー行を除く (i=1から)
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const status = row[statusColIndex];
+      const dueDateValue = row[dueDateColIndex];
+      
+      // 返却状況が "未返却" かどうかチェック
+      if (status === "未返却") {
+        // 返却予定日が有効な日付オブジェクトかチェック
+        if (dueDateValue instanceof Date && !isNaN(dueDateValue)) {
+          const dueDate = new Date(dueDateValue);
+          dueDate.setHours(0, 0, 0, 0); // 時刻部分をリセット
+          
+          // 返却予定日が今日より前（つまり延滞している）かチェック
+          if (dueDate < today) {
+            const overdueDays = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+            
+            overdueList.push({
+              userId: row[userIdColIndex] || "",
+              userName: row[userNameColIndex] || "",
+              bookId: row[bookIdColIndex] || "",
+              bookTitle: row[titleColIndex] || "",
+              lendingDate: row[lendingDateColIndex],
+              dueDate: dueDateValue,
+              overdueDays: overdueDays
+            });
+          }
+        }
+      }
+    }
+    
+    // 延滞日数の多い順にソート
+    overdueList.sort((a, b) => b.overdueDays - a.overdueDays);
+    
+    console.log(`延滞者リスト取得完了: ${overdueList.length}件`);
+    return overdueList;
+    
+  } catch (error) {
+    console.error(`延滞者リストの取得中にエラーが発生しました: ${error}`);
+    throw new Error(`延滞者リストの取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 延滞者レポートを作成する関数
+ * @return {object} 処理結果
+ */
+function createOverdueReport() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const overdueList = getOverdueList();
+    
+    // 現在の日時を取得してレポート名に使用
+    const now = new Date();
+    const reportName = `延滞者レポート_${Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd_HHmm")}`;
+    
+    // 既存のレポートシートがあれば削除
+    const existingSheet = ss.getSheetByName(reportName);
+    if (existingSheet) {
+      ss.deleteSheet(existingSheet);
+    }
+    
+    // 新しいシートを作成
+    const reportSheet = ss.insertSheet(reportName);
+    
+    // ヘッダー行を設定
+    const headers = ["利用者ID", "利用者名", "書籍ID", "書籍名", "貸出日", "返却予定日", "延滞日数", "連絡先"];
+    reportSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    reportSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
+    
+    if (overdueList.length > 0) {
+      // 利用者の連絡先情報を取得するため、利用者DBを参照
+      const userSheet = ss.getSheetByName("利用者DB");
+      const userData = userSheet ? userSheet.getDataRange().getValues() : [];
+      const userMap = new Map();
+      
+      // 利用者情報をMapに格納（効率化のため）
+      for (let i = 1; i < userData.length; i++) {
+        const userId = userData[i][0];
+        const email = userData[i][2] || "";
+        const phone = userData[i][3] || "";
+        if (userId) {
+          userMap.set(userId, { email: email, phone: phone });
+        }
+      }
+      
+      // レポートデータを作成
+      const reportData = overdueList.map(item => {
+        const userInfo = userMap.get(item.userId) || { email: "", phone: "" };
+        const contact = userInfo.email || userInfo.phone || "連絡先なし";
+        
+        return [
+          item.userId,
+          item.userName,
+          item.bookId,
+          item.bookTitle,
+          Utilities.formatDate(item.lendingDate, Session.getScriptTimeZone(), "yyyy/MM/dd"),
+          Utilities.formatDate(item.dueDate, Session.getScriptTimeZone(), "yyyy/MM/dd"),
+          item.overdueDays + "日",
+          contact
+        ];
+      });
+      
+      // データをシートに書き込み
+      reportSheet.getRange(2, 1, reportData.length, headers.length).setValues(reportData);
+      
+      // 延滞日数に応じて行の色を設定
+      for (let i = 0; i < overdueList.length; i++) {
+        const row = i + 2;
+        if (overdueList[i].overdueDays >= 30) {
+          reportSheet.getRange(row, 1, 1, headers.length).setBackground("#ffcdd2"); // 濃い赤
+        } else if (overdueList[i].overdueDays >= 14) {
+          reportSheet.getRange(row, 1, 1, headers.length).setBackground("#ffebee"); // 薄い赤
+        } else {
+          reportSheet.getRange(row, 1, 1, headers.length).setBackground("#fff3e0"); // 薄いオレンジ
+        }
+      }
+    }
+    
+    // 列幅を自動調整
+    reportSheet.autoResizeColumns(1, headers.length);
+    
+    // サマリー情報を追加
+    const summaryRow = overdueList.length + 4;
+    reportSheet.getRange(summaryRow, 1).setValue("サマリー");
+    reportSheet.getRange(summaryRow, 1).setFontWeight("bold");
+    reportSheet.getRange(summaryRow + 1, 1).setValue("総延滞件数:");
+    reportSheet.getRange(summaryRow + 1, 2).setValue(overdueList.length + "件");
+    
+    if (overdueList.length > 0) {
+      const maxOverdue = Math.max(...overdueList.map(item => item.overdueDays));
+      reportSheet.getRange(summaryRow + 2, 1).setValue("最大延滞日数:");
+      reportSheet.getRange(summaryRow + 2, 2).setValue(maxOverdue + "日");
+    }
+    
+    // フィルターを設定
+    if (overdueList.length > 0) {
+      reportSheet.getRange(1, 1, overdueList.length + 1, headers.length).createFilter();
+    }
+    
+    // 作成したシートをアクティブにする
+    ss.setActiveSheet(reportSheet);
+    
+    console.log(`延滞者レポート作成完了: ${reportName}`);
+    return { success: true, message: `延滞者レポート「${reportName}」を作成しました。` };
+    
+  } catch (error) {
+    console.error(`延滞者レポート作成中にエラーが発生しました: ${error}`);
+    throw new Error(`レポート作成に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 図書館の統計データを取得する関数
+ * @return {object} 統計データ
+ */
+function getLibraryStatistics() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    
+    if (!lendingSheet) {
+      throw new Error("貸出記録シートが見つかりません。");
+    }
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // ヘッダー: A:書籍ID, B:書籍名, C:利用者ID, D:利用者名, E:貸出日時, F:返却予定日, G:返却状況
+    const bookIdColIndex = 0;
+    const titleColIndex = 1;
+    const userIdColIndex = 2;
+    const userNameColIndex = 3;
+    const lendingDateColIndex = 4;
+    const dueDateColIndex = 5;
+    const statusColIndex = 6;
+    
+    const records = [];
+    
+    // ヘッダー行を除く
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const lendingDate = row[lendingDateColIndex];
+      const dueDate = row[dueDateColIndex];
+      const status = row[statusColIndex];
+      
+      // 延滞判定
+      let isOverdue = false;
+      if (status === "未返却" && dueDate instanceof Date && !isNaN(dueDate)) {
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        isOverdue = due < today;
+      }
+      
+      records.push({
+        bookId: row[bookIdColIndex] || "",
+        bookTitle: row[titleColIndex] || "",
+        userId: row[userIdColIndex] || "",
+        userName: row[userNameColIndex] || "",
+        lendingDate: lendingDate,
+        dueDate: dueDate,
+        status: status,
+        isOverdue: isOverdue
+      });
+    }
+    
+    return { records: records };
+    
+  } catch (error) {
+    console.error(`統計データの取得中にエラーが発生しました: ${error}`);
+    throw new Error(`統計データの取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 統計レポートを作成する関数
+ * @param {string} period - 集計期間 (week, month, year, all)
+ * @return {object} 処理結果
+ */
+function createStatisticsReport(period) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const statisticsData = getLibraryStatistics();
+    
+    // 期間の計算
+    const now = new Date();
+    let startDate;
+    let periodText;
+    
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        periodText = "今週";
+        break;
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodText = "今月";
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        periodText = "今年";
+        break;
+      default:
+        startDate = new Date(0);
+        periodText = "全期間";
+    }
+    
+    // 期間でフィルタリング
+    const filteredRecords = statisticsData.records.filter(record => {
+      const lendingDate = new Date(record.lendingDate);
+      return lendingDate >= startDate;
+    });
+    
+    // 統計の計算
+    const stats = {
+      totalLending: filteredRecords.length,
+      currentLending: 0,
+      returned: 0,
+      overdue: 0,
+      bookCount: {},
+      userCount: {}
+    };
+    
+    filteredRecords.forEach(record => {
+      if (record.status === '未返却') {
+        stats.currentLending++;
+        if (record.isOverdue) {
+          stats.overdue++;
+        }
+      } else {
+        stats.returned++;
+      }
+      
+      // 書籍カウント
+      if (!stats.bookCount[record.bookTitle]) {
+        stats.bookCount[record.bookTitle] = 0;
+      }
+      stats.bookCount[record.bookTitle]++;
+      
+      // 利用者カウント
+      if (!stats.userCount[record.userName]) {
+        stats.userCount[record.userName] = 0;
+      }
+      stats.userCount[record.userName]++;
+    });
+    
+    // レポート名
+    const reportName = `貸出統計レポート_${periodText}_${Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd_HHmm")}`;
+    
+    // 既存のレポートシートがあれば削除
+    const existingSheet = ss.getSheetByName(reportName);
+    if (existingSheet) {
+      ss.deleteSheet(existingSheet);
+    }
+    
+    // 新しいシートを作成
+    const reportSheet = ss.insertSheet(reportName);
+    
+    // サマリー情報
+    const summaryData = [
+      ["貸出統計レポート", ""],
+      ["集計期間", periodText],
+      ["集計開始日", Utilities.formatDate(startDate, Session.getScriptTimeZone(), "yyyy/MM/dd")],
+      ["作成日時", Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss")],
+      ["", ""],
+      ["総貸出数", stats.totalLending + "件"],
+      ["貸出中", stats.currentLending + "件"],
+      ["返却済", stats.returned + "件"],
+      ["延滞中", stats.overdue + "件"],
+      ["", ""]
+    ];
+    
+    reportSheet.getRange(1, 1, summaryData.length, 2).setValues(summaryData);
+    reportSheet.getRange(1, 1, 1, 2).merge().setFontWeight("bold").setFontSize(14);
+    
+    let currentRow = summaryData.length + 2;
+    
+    // 人気書籍ランキング
+    const bookRanking = Object.entries(stats.bookCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+    
+    reportSheet.getRange(currentRow, 1).setValue("人気書籍ランキング TOP20");
+    reportSheet.getRange(currentRow, 1, 1, 3).merge().setFontWeight("bold").setBackground("#f3f3f3");
+    currentRow++;
+    
+    reportSheet.getRange(currentRow, 1, 1, 3).setValues([["順位", "書籍名", "貸出回数"]]);
+    reportSheet.getRange(currentRow, 1, 1, 3).setFontWeight("bold");
+    currentRow++;
+    
+    bookRanking.forEach((item, index) => {
+      reportSheet.getRange(currentRow, 1, 1, 3).setValues([[index + 1, item[0], item[1] + "回"]]);
+      currentRow++;
+    });
+    
+    currentRow += 2;
+    
+    // アクティブ利用者ランキング
+    const userRanking = Object.entries(stats.userCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+    
+    reportSheet.getRange(currentRow, 1).setValue("アクティブ利用者ランキング TOP20");
+    reportSheet.getRange(currentRow, 1, 1, 3).merge().setFontWeight("bold").setBackground("#f3f3f3");
+    currentRow++;
+    
+    reportSheet.getRange(currentRow, 1, 1, 3).setValues([["順位", "利用者名", "貸出冊数"]]);
+    reportSheet.getRange(currentRow, 1, 1, 3).setFontWeight("bold");
+    currentRow++;
+    
+    userRanking.forEach((item, index) => {
+      reportSheet.getRange(currentRow, 1, 1, 3).setValues([[index + 1, item[0], item[1] + "冊"]]);
+      currentRow++;
+    });
+    
+    // 列幅を自動調整
+    reportSheet.autoResizeColumns(1, 3);
+    
+    // 作成したシートをアクティブにする
+    ss.setActiveSheet(reportSheet);
+    
+    console.log(`統計レポート作成完了: ${reportName}`);
+    return { success: true, message: `統計レポート「${reportName}」を作成しました。` };
+    
+  } catch (error) {
+    console.error(`統計レポート作成中にエラーが発生しました: ${error}`);
+    throw new Error(`レポート作成に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 貸出履歴を検索する関数
+ * @param {object} criteria - 検索条件
+ * @return {Array} 検索結果の配列
+ */
+function searchLendingHistory(criteria) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    
+    if (!lendingSheet) {
+      throw new Error("貸出記録シートが見つかりません。");
+    }
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // ヘッダー: A:書籍ID, B:書籍名, C:利用者ID, D:利用者名, E:貸出日時, F:返却予定日, G:返却状況, H:返却日時
+    const bookIdColIndex = 0;
+    const titleColIndex = 1;
+    const userIdColIndex = 2;
+    const userNameColIndex = 3;
+    const lendingDateColIndex = 4;
+    const dueDateColIndex = 5;
+    const statusColIndex = 6;
+    const returnDateColIndex = 7;
+    
+    const results = [];
+    
+    // ヘッダー行を除く
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      
+      // 検索条件でフィルタリング
+      let match = true;
+      
+      // 書籍ID
+      if (criteria.bookId && row[bookIdColIndex]) {
+        if (row[bookIdColIndex].toString().toLowerCase() !== criteria.bookId.toLowerCase()) {
+          match = false;
+        }
+      }
+      
+      // 書籍名（部分一致）
+      if (criteria.bookTitle && row[titleColIndex]) {
+        if (!row[titleColIndex].toString().toLowerCase().includes(criteria.bookTitle.toLowerCase())) {
+          match = false;
+        }
+      }
+      
+      // 利用者ID
+      if (criteria.userId && row[userIdColIndex]) {
+        if (row[userIdColIndex].toString().toLowerCase() !== criteria.userId.toLowerCase()) {
+          match = false;
+        }
+      }
+      
+      // 利用者名（部分一致）
+      if (criteria.userName && row[userNameColIndex]) {
+        if (!row[userNameColIndex].toString().toLowerCase().includes(criteria.userName.toLowerCase())) {
+          match = false;
+        }
+      }
+      
+      // 貸出日（開始）
+      if (criteria.dateFrom && row[lendingDateColIndex]) {
+        const lendingDate = new Date(row[lendingDateColIndex]);
+        const dateFrom = new Date(criteria.dateFrom);
+        if (lendingDate < dateFrom) {
+          match = false;
+        }
+      }
+      
+      // 貸出日（終了）
+      if (criteria.dateTo && row[lendingDateColIndex]) {
+        const lendingDate = new Date(row[lendingDateColIndex]);
+        const dateTo = new Date(criteria.dateTo);
+        dateTo.setHours(23, 59, 59, 999); // その日の終わりまで含める
+        if (lendingDate > dateTo) {
+          match = false;
+        }
+      }
+      
+      // 返却状況
+      const status = row[statusColIndex];
+      const dueDate = row[dueDateColIndex];
+      let isOverdue = false;
+      
+      if (status === "未返却" && dueDate instanceof Date && !isNaN(dueDate)) {
+        const due = new Date(dueDate);
+        due.setHours(0, 0, 0, 0);
+        isOverdue = due < today;
+      }
+      
+      if (criteria.status) {
+        if (criteria.status === "延滞中") {
+          if (!isOverdue || status !== "未返却") {
+            match = false;
+          }
+        } else if (criteria.status !== status) {
+          match = false;
+        }
+      }
+      
+      if (match) {
+        results.push({
+          bookId: row[bookIdColIndex] || "",
+          bookTitle: row[titleColIndex] || "",
+          userId: row[userIdColIndex] || "",
+          userName: row[userNameColIndex] || "",
+          lendingDate: row[lendingDateColIndex],
+          dueDate: row[dueDateColIndex],
+          returnDate: row[returnDateColIndex] || null,
+          status: status,
+          isOverdue: isOverdue
+        });
+      }
+    }
+    
+    // 貸出日の新しい順にソート
+    results.sort((a, b) => {
+      const dateA = new Date(a.lendingDate);
+      const dateB = new Date(b.lendingDate);
+      return dateB - dateA;
+    });
+    
+    console.log(`貸出履歴検索完了: ${results.length}件`);
+    return results;
+    
+  } catch (error) {
+    console.error(`貸出履歴の検索中にエラーが発生しました: ${error}`);
+    throw new Error(`貸出履歴の検索に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 貸出履歴レポートを作成する関数
+ * @param {Array} historyData - 履歴データの配列
+ * @return {object} 処理結果
+ */
+function createHistoryReport(historyData) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const now = new Date();
+    const reportName = `貸出履歴レポート_${Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd_HHmm")}`;
+    
+    // 既存のレポートシートがあれば削除
+    const existingSheet = ss.getSheetByName(reportName);
+    if (existingSheet) {
+      ss.deleteSheet(existingSheet);
+    }
+    
+    // 新しいシートを作成
+    const reportSheet = ss.insertSheet(reportName);
+    
+    // ヘッダー行を設定
+    const headers = ["書籍ID", "書籍名", "利用者ID", "利用者名", "貸出日", "返却予定日", "返却日", "状態"];
+    reportSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    reportSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
+    
+    if (historyData.length > 0) {
+      // レポートデータを作成
+      const reportData = historyData.map(record => {
+        let statusText = record.status;
+        if (record.status === "未返却" && record.isOverdue) {
+          statusText = "延滞中";
+        }
+        
+        return [
+          record.bookId,
+          record.bookTitle,
+          record.userId,
+          record.userName,
+          record.lendingDate ? Utilities.formatDate(record.lendingDate, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : "",
+          record.dueDate ? Utilities.formatDate(record.dueDate, Session.getScriptTimeZone(), "yyyy/MM/dd") : "",
+          record.returnDate ? Utilities.formatDate(record.returnDate, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : "",
+          statusText
+        ];
+      });
+      
+      // データをシートに書き込み
+      reportSheet.getRange(2, 1, reportData.length, headers.length).setValues(reportData);
+      
+      // 状態に応じて行の色を設定
+      for (let i = 0; i < historyData.length; i++) {
+        const row = i + 2;
+        if (historyData[i].status === "未返却") {
+          if (historyData[i].isOverdue) {
+            reportSheet.getRange(row, 1, 1, headers.length).setBackground("#ffcdd2"); // 延滞中は赤
+          } else {
+            reportSheet.getRange(row, 1, 1, headers.length).setBackground("#fff3e0"); // 未返却はオレンジ
+          }
+        }
+      }
+    }
+    
+    // 列幅を自動調整
+    reportSheet.autoResizeColumns(1, headers.length);
+    
+    // フィルターを設定
+    if (historyData.length > 0) {
+      reportSheet.getRange(1, 1, historyData.length + 1, headers.length).createFilter();
+    }
+    
+    // 作成したシートをアクティブにする
+    ss.setActiveSheet(reportSheet);
+    
+    console.log(`貸出履歴レポート作成完了: ${reportName}`);
+    return { success: true, message: `貸出履歴レポート「${reportName}」を作成しました。` };
+    
+  } catch (error) {
+    console.error(`貸出履歴レポート作成中にエラーが発生しました: ${error}`);
+    throw new Error(`履歴レポート作成に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 書籍在庫情報を取得する関数
+ * @return {Array} 書籍在庫情報の配列
+ */
+function getBookInventory() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const bookSheet = ss.getSheetByName("書籍DB");
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    
+    if (!bookSheet) {
+      throw new Error("書籍DBシートが見つかりません。");
+    }
+    
+    const bookData = bookSheet.getDataRange().getValues();
+    const lendingData = lendingSheet ? lendingSheet.getDataRange().getValues() : [];
+    
+    // 書籍IDをキーとして、現在の貸出状況を格納するMap
+    const lendingMap = new Map();
+    
+    // 貸出記録から現在貸出中の書籍を抽出
+    for (let i = 1; i < lendingData.length; i++) {
+      const bookId = lendingData[i][0]; // A列: 書籍ID
+      const status = lendingData[i][6];  // G列: 返却状況
+      
+      if (status === "未返却") {
+        lendingMap.set(bookId, {
+          borrowerName: lendingData[i][3],  // D列: 利用者名
+          borrowerId: lendingData[i][2],    // C列: 利用者ID
+          lendingDate: lendingData[i][4],   // E列: 貸出日時
+          dueDate: lendingData[i][5]        // F列: 返却予定日
+        });
+      }
+    }
+    
+    // 書籍在庫情報を作成
+    const inventory = [];
+    for (let i = 1; i < bookData.length; i++) {
+      const bookId = bookData[i][0];   // A列: 書籍ID
+      const title = bookData[i][1];     // B列: 書籍名
+      const author = bookData[i][2] || "";    // C列: 著者名
+      const publisher = bookData[i][3] || ""; // D列: 出版社
+      
+      if (!bookId) continue; // 書籍IDがない行はスキップ
+      
+      const lendingInfo = lendingMap.get(bookId);
+      
+      inventory.push({
+        bookId: bookId,
+        title: title || "タイトル不明",
+        author: author,
+        publisher: publisher,
+        status: lendingInfo ? 'borrowed' : 'available',
+        borrowerName: lendingInfo ? lendingInfo.borrowerName : null,
+        borrowerId: lendingInfo ? lendingInfo.borrowerId : null,
+        lendingDate: lendingInfo ? lendingInfo.lendingDate : null,
+        dueDate: lendingInfo ? lendingInfo.dueDate : null
+      });
+    }
+    
+    // 書籍IDでソート
+    inventory.sort((a, b) => {
+      if (a.bookId < b.bookId) return -1;
+      if (a.bookId > b.bookId) return 1;
+      return 0;
+    });
+    
+    console.log(`書籍在庫情報取得完了: ${inventory.length}件`);
+    return inventory;
+    
+  } catch (error) {
+    console.error(`書籍在庫情報の取得中にエラーが発生しました: ${error}`);
+    throw new Error(`書籍在庫情報の取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 書籍の詳細情報を取得する関数（編集用）
+ * @param {string} bookId - 書籍ID
+ * @return {object|null} 書籍情報オブジェクト
+ */
+function getBookFullDetails(bookId) {
+  if (!bookId) {
+    console.error("書籍IDが指定されていません。");
+    return null;
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const bookSheet = ss.getSheetByName("書籍DB");
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    
+    if (!bookSheet) {
+      console.error("書籍DBシートが見つかりません。");
+      return null;
+    }
+    
+    const bookData = bookSheet.getDataRange().getValues();
+    const bookIdColIndex = 0; // A列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < bookData.length; i++) {
+      const rowBookId = bookData[i][bookIdColIndex] ? bookData[i][bookIdColIndex].toString().trim() : "";
+      if (rowBookId.toLowerCase() === bookId.trim().toLowerCase()) {
+        // 基本情報
+        const bookInfo = {
+          bookId: rowBookId,
+          title: bookData[i][1] || "",
+          author: bookData[i][2] || "",
+          publisher: bookData[i][3] || "",
+          note: bookData[i][4] || "",
+          category: bookData[i][5] || "",
+          location: bookData[i][6] || "",
+          registrationDate: bookData[i][7] || new Date(),
+          isAvailable: true,
+          lastLendingDate: null
+        };
+        
+        // 貸出状態と最終貸出日を確認
+        if (lendingSheet) {
+          const lendingData = lendingSheet.getDataRange().getValues();
+          for (let j = 1; j < lendingData.length; j++) {
+            if (lendingData[j][0] && lendingData[j][0].toString().trim().toLowerCase() === bookId.trim().toLowerCase()) {
+              // 貸出日を更新
+              const lendingDate = lendingData[j][4];
+              if (lendingDate && (!bookInfo.lastLendingDate || lendingDate > bookInfo.lastLendingDate)) {
+                bookInfo.lastLendingDate = lendingDate;
+              }
+              
+              // 未返却の場合
+              if (lendingData[j][6] === "未返却") {
+                bookInfo.isAvailable = false;
+              }
+            }
+          }
+        }
+        
+        return bookInfo;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`書籍情報の取得中にエラーが発生しました: ${error}`);
+    throw new Error(`書籍情報の取得に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 書籍の貸出履歴を取得する関数
+ * @param {string} bookId - 書籍ID
+ * @return {Array} 貸出履歴の配列
+ */
+function getBookLendingHistory(bookId) {
+  if (!bookId) return [];
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (!lendingSheet) return [];
+    
+    const data = lendingSheet.getDataRange().getValues();
+    const bookIdColIndex = 0; // A列
+    const history = [];
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowBookId = data[i][bookIdColIndex] ? data[i][bookIdColIndex].toString().trim() : "";
+      if (rowBookId.toLowerCase() === bookId.trim().toLowerCase()) {
+        history.push({
+          userId: data[i][2] || "",
+          userName: data[i][3] || "",
+          lendingDate: data[i][4] || "",
+          dueDate: data[i][5] || "",
+          status: data[i][6] || "",
+          returnDate: data[i][7] || ""
+        });
+      }
+    }
+    
+    // 貸出日の降順でソート
+    history.sort((a, b) => {
+      const dateA = new Date(a.lendingDate);
+      const dateB = new Date(b.lendingDate);
+      return dateB - dateA;
+    });
+    
+    return history;
+  } catch (error) {
+    console.error(`貸出履歴の取得中にエラーが発生しました: ${error}`);
+    return [];
+  }
+}
+
+/**
+ * 書籍情報を更新する関数
+ * @param {object} bookData - 更新する書籍データ
+ * @return {boolean} 更新成功の可否
+ */
+function updateBookInfo(bookData) {
+  if (!bookData || !bookData.bookId) {
+    throw new Error("書籍IDが指定されていません。");
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const bookSheet = ss.getSheetByName("書籍DB");
+    if (!bookSheet) {
+      throw new Error("書籍DBシートが見つかりません。");
+    }
+    
+    const data = bookSheet.getDataRange().getValues();
+    const bookIdColIndex = 0; // A列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowBookId = data[i][bookIdColIndex] ? data[i][bookIdColIndex].toString().trim() : "";
+      if (rowBookId.toLowerCase() === bookData.bookId.trim().toLowerCase()) {
+        // 既存の登録日を保持
+        const registrationDate = data[i][7] || new Date();
+        
+        // 更新する行のデータを作成
+        const updatedRow = [
+          rowBookId, // 書籍ID（変更不可）
+          bookData.title || "",
+          bookData.author || "",
+          bookData.publisher || "",
+          bookData.note || "",
+          bookData.category || "",
+          bookData.location || "",
+          registrationDate
+        ];
+        
+        // 行を更新
+        bookSheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+        console.log(`書籍情報を更新しました: ${bookData.bookId}`);
+        return true;
+      }
+    }
+    
+    throw new Error("指定された書籍IDが見つかりません。");
+  } catch (error) {
+    console.error(`書籍情報の更新中にエラーが発生しました: ${error}`);
+    throw new Error(`書籍情報の更新に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 書籍を削除する関数
+ * @param {string} bookId - 削除する書籍ID
+ * @return {boolean} 削除成功の可否
+ */
+function deleteBook(bookId) {
+  if (!bookId) {
+    throw new Error("書籍IDが指定されていません。");
+  }
+  
+  try {
+    // まず貸出中でないか確認
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const lendingSheet = ss.getSheetByName("貸出記録");
+    if (lendingSheet) {
+      const lendingData = lendingSheet.getDataRange().getValues();
+      const bookIdColIndex = 0; // A列
+      const statusColIndex = 6; // G列
+      
+      for (let i = 1; i < lendingData.length; i++) {
+        const rowBookId = lendingData[i][bookIdColIndex] ? lendingData[i][bookIdColIndex].toString().trim() : "";
+        const status = lendingData[i][statusColIndex];
+        if (rowBookId.toLowerCase() === bookId.trim().toLowerCase() && status === "未返却") {
+          throw new Error("貸出中の書籍は削除できません。");
+        }
+      }
+    }
+    
+    // 書籍DBから削除
+    const bookSheet = ss.getSheetByName("書籍DB");
+    if (!bookSheet) {
+      throw new Error("書籍DBシートが見つかりません。");
+    }
+    
+    const data = bookSheet.getDataRange().getValues();
+    const bookIdColIndex = 0; // A列
+    
+    // ヘッダー行を除いて検索
+    for (let i = 1; i < data.length; i++) {
+      const rowBookId = data[i][bookIdColIndex] ? data[i][bookIdColIndex].toString().trim() : "";
+      if (rowBookId.toLowerCase() === bookId.trim().toLowerCase()) {
+        // 行を削除
+        bookSheet.deleteRow(i + 1);
+        console.log(`書籍を削除しました: ${bookId}`);
+        return true;
+      }
+    }
+    
+    throw new Error("指定された書籍IDが見つかりません。");
+  } catch (error) {
+    console.error(`書籍の削除中にエラーが発生しました: ${error}`);
+    throw new Error(`書籍の削除に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 在庫リストレポートを作成する関数
+ * @return {object} 処理結果
+ */
+function createInventoryReport() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const inventory = getBookInventory();
+    const now = new Date();
+    const reportName = `書籍在庫リスト_${Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd_HHmm")}`;
+    
+    // 既存のレポートシートがあれば削除
+    const existingSheet = ss.getSheetByName(reportName);
+    if (existingSheet) {
+      ss.deleteSheet(existingSheet);
+    }
+    
+    // 新しいシートを作成
+    const reportSheet = ss.insertSheet(reportName);
+    
+    // サマリー情報
+    const totalBooks = inventory.length;
+    const availableBooks = inventory.filter(book => book.status === 'available').length;
+    const borrowedBooks = inventory.filter(book => book.status === 'borrowed').length;
+    
+    const summaryData = [
+      ["書籍在庫リスト", ""],
+      ["作成日時", Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss")],
+      ["", ""],
+      ["総蔵書数", totalBooks + "冊"],
+      ["貸出可能", availableBooks + "冊"],
+      ["貸出中", borrowedBooks + "冊"],
+      ["", ""]
+    ];
+    
+    reportSheet.getRange(1, 1, summaryData.length, 2).setValues(summaryData);
+    reportSheet.getRange(1, 1, 1, 2).merge().setFontWeight("bold").setFontSize(14);
+    
+    // ヘッダー行を設定
+    const currentRow = summaryData.length + 2;
+    const headers = ["書籍ID", "書籍名", "著者", "出版社", "状態", "貸出者", "貸出日", "返却予定日"];
+    reportSheet.getRange(currentRow, 1, 1, headers.length).setValues([headers]);
+    reportSheet.getRange(currentRow, 1, 1, headers.length).setFontWeight("bold").setBackground("#f3f3f3");
+    
+    // データ行を作成
+    if (inventory.length > 0) {
+      const dataRows = inventory.map(book => {
+        const statusText = book.status === 'available' ? '貸出可能' : '貸出中';
+        return [
+          book.bookId,
+          book.title,
+          book.author,
+          book.publisher,
+          statusText,
+          book.borrowerName || "",
+          book.lendingDate ? Utilities.formatDate(book.lendingDate, Session.getScriptTimeZone(), "yyyy/MM/dd") : "",
+          book.dueDate ? Utilities.formatDate(book.dueDate, Session.getScriptTimeZone(), "yyyy/MM/dd") : ""
+        ];
+      });
+      
+      reportSheet.getRange(currentRow + 1, 1, dataRows.length, headers.length).setValues(dataRows);
+      
+      // 状態に応じて行の色を設定
+      for (let i = 0; i < inventory.length; i++) {
+        const row = currentRow + 1 + i;
+        if (inventory[i].status === 'borrowed') {
+          reportSheet.getRange(row, 1, 1, headers.length).setBackground("#fff3e0"); // 貸出中はオレンジ
+        }
+      }
+      
+      // フィルターを設定
+      reportSheet.getRange(currentRow, 1, inventory.length + 1, headers.length).createFilter();
+    }
+    
+    // 列幅を自動調整
+    reportSheet.autoResizeColumns(1, headers.length);
+    
+    // 作成したシートをアクティブにする
+    ss.setActiveSheet(reportSheet);
+    
+    console.log(`在庫リストレポート作成完了: ${reportName}`);
+    return { success: true, message: `在庫リスト「${reportName}」を作成しました。` };
+    
+  } catch (error) {
+    console.error(`在庫リストレポート作成中にエラーが発生しました: ${error}`);
+    throw new Error(`在庫リスト作成に失敗しました: ${error.message}`);
   }
 }
