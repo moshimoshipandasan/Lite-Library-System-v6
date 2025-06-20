@@ -42,9 +42,9 @@
     
     /* 統一されたボタンスタイル */
     .menu-button {
-      display: block;
+      display: flex;
       width: 100%;
-      padding: 45px 60px;
+      padding: 30px 60px;
       font-size: 48px;
       font-weight: bold;
       text-decoration: none;
@@ -53,14 +53,14 @@
       border-radius: 30px;
       cursor: pointer;
       transition: all 0.3s ease;
-      text-align: center;
+      text-align: left;
       position: relative;
       overflow: hidden;
-      min-height: 180px;
-      display: flex;
-      flex-direction: column;
+      min-height: 90px;
+      flex-direction: row;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      gap: 30px;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
     }
     
@@ -100,11 +100,22 @@
       background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
     }
     
+    .user-register {
+      background-color: #17a2b8;
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    }
+    
+    .card-issue {
+      background-color: #fd7e14;
+      background: linear-gradient(135deg, #fd7e14 0%, #dc6502 100%);
+    }
+    
     /* メニューアイコン */
     .menu-icon {
-      font-size: 72px;
-      margin-bottom: 15px;
+      font-size: 60px;
+      margin-bottom: 0;
       display: block;
+      flex-shrink: 0;
     }
     
     /* ローディング状態 */
@@ -132,15 +143,16 @@
       }
       
       .menu-button {
-        padding: 36px 48px;
+        padding: 24px 48px;
         font-size: 42px;
-        min-height: 150px;
+        min-height: 75px;
         border-radius: 24px;
+        gap: 20px;
       }
       
       .menu-icon {
-        font-size: 60px;
-        margin-bottom: 12px;
+        font-size: 48px;
+        margin-bottom: 0;
       }
     }
     
@@ -157,15 +169,16 @@
       }
       
       .menu-button {
-        padding: 30px 40px;
+        padding: 20px 30px;
         font-size: 36px;
-        min-height: 120px;
+        min-height: 60px;
         border-radius: 20px;
+        gap: 15px;
       }
       
       .menu-icon {
-        font-size: 48px;
-        margin-bottom: 10px;
+        font-size: 36px;
+        margin-bottom: 0;
       }
     }
   </style>
@@ -185,9 +198,11 @@
       const menuItems = [
         { page: 'checkout', icon: '📚', text: '図書貸出', class: 'checkout' },
         { page: 'return', icon: '📖', text: '図書返却', class: 'return' },
-        { page: 'finder', icon: '🔍', text: '貸出書籍検索', class: 'finder' },
         { page: 'user_returns', icon: '👤', text: '利用者別返却', class: 'user-returns' },
-        { page: 'register', icon: '➕', text: '書籍登録', class: 'register' }
+        { page: 'finder', icon: '🔍', text: '貸出書籍検索', class: 'finder' },
+        { page: 'register', icon: '➕', text: '書籍登録', class: 'register' },
+        { page: 'user_register', icon: '👥', text: '利用者登録', class: 'user-register' },
+        { page: 'card_issue', icon: '🎫', text: '図書カード発行', class: 'card-issue' }
       ];
 
       let menuHtml = '';
@@ -213,17 +228,25 @@
           <span class="menu-icon">📖</span>
           図書返却
         </a>
-        <a href="?page=finder" class="menu-button finder">
-          <span class="menu-icon">🔍</span>
-          貸出書籍検索
-        </a>
         <a href="?page=user_returns" class="menu-button user-returns">
           <span class="menu-icon">👤</span>
           利用者別返却
         </a>
+        <a href="?page=finder" class="menu-button finder">
+          <span class="menu-icon">🔍</span>
+          貸出書籍検索
+        </a>
         <a href="?page=register" class="menu-button register">
           <span class="menu-icon">➕</span>
           書籍登録
+        </a>
+        <a href="?page=user_register" class="menu-button user-register">
+          <span class="menu-icon">👥</span>
+          利用者登録
+        </a>
+        <a href="?page=card_issue" class="menu-button card-issue">
+          <span class="menu-icon">🎫</span>
+          図書カード発行
         </a>
       `;
     }).getWebAppUrl();

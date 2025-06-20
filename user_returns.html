@@ -135,6 +135,17 @@
           font-size: 48px; /* フォントサイズを3倍に拡大 */
           width: 100%; /* スマホでは幅いっぱいに */
           min-height: 150px; /* タッチターゲットを3倍に拡大 */
+          background-color: #0056b3; /* 青色に統一 */
+      }
+      button[onclick="searchUserRentals()"]:hover {
+          background-color: #004494;
+      }
+      /* 検索ボタンを青色に */
+      #search-user-button {
+        background-color: #0056b3; /* 青色に統一 */
+      }
+      #search-user-button:hover {
+        background-color: #004494;
       }
       
       /* チェックボックス */
@@ -445,7 +456,6 @@
         <label for="user-id">利用者ID</label>
         <button id="scan-user-id-button">利用者IDをスキャン</button>
         <input type="text" id="user-id" name="userId" placeholder="スキャンするか手入力してください">
-        <button id="search-user-button" class="btn-utility">検索</button>
         <div id="scanner-container-user-returns" class="scanner-container" style="display: none;">
           <div class="scanner-header">
             <button class="camera-switch-btn" onclick="switchCamera('interactive')">📷 切替</button>

@@ -30,6 +30,14 @@ function doGet(e) {
         page = 'book_register';
         title = '書籍登録システム';
         break;
+      case 'user_register':
+        page = 'user_register';
+        title = '利用者登録システム';
+        break;
+      case 'card_issue':
+        page = 'card_issue';
+        title = '図書カード発行システム';
+        break;
       default:
         // デフォルトはメニューページのまま
         break;
@@ -1272,6 +1280,8 @@ function fetchBookInfo(isbn) {
  * @return {object} 処理結果 {success: boolean, message: string}
  */
 function registerBook(bookData) {
+  console.log("registerBook関数が呼び出されました:", JSON.stringify(bookData));
+  
   if (!bookData || !bookData.isbn || !bookData.title) {
     return { success: false, message: "書籍IDと書籍名は必須です。" };
   }
@@ -1281,17 +1291,37 @@ function registerBook(bookData) {
     const bookSheet = ss.getSheetByName("書籍DB");
     
     if (!bookSheet) {
+      console.error("書籍DBシートが見つかりません");
       return { success: false, message: "書籍DBシートが見つかりません。" };
     }
     
     // 既存の書籍IDをチェック（重複登録を防止）
+    const range = bookSheet.getDataRange();
+    // データがない場合の処理
+    if (!range || range.getNumRows() === 0) {
+      console.log("書籍DBが空です。最初の書籍を登録します。");
+      // ヘッダー行を追加
+      bookSheet.getRange(1, 1, 1, 5).setValues([["書籍ID", "書籍名", "著者名", "出版社", "備考"]]);
+    }
+    
     const data = bookSheet.getDataRange().getValues();
     const bookIdColIndex = 0; // A列
     
-    // ヘッダー行を除いて検索
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][bookIdColIndex] && data[i][bookIdColIndex].toString().trim() === bookData.isbn.trim()) {
-        return { success: false, message: `書籍ID ${bookData.isbn} は既に登録されています。` };
+    console.log(`書籍DBのデータ行数: ${data.length}`);
+    
+    // ヘッダー行を除いて検索（データが1行以下の場合はスキップ）
+    if (data.length > 1) {
+      for (let i = 1; i < data.length; i++) {
+        const existingId = data[i][bookIdColIndex];
+        console.log(`行 ${i + 1}: 既存ID = ${existingId}, 新規ID = ${bookData.isbn}`);
+        
+        if (existingId && existingId.toString().trim() === bookData.isbn.trim()) {
+          const existingTitle = data[i][1]; // B列：書籍名
+          return { 
+            success: false, 
+            message: `書籍ID「${bookData.isbn}」は既に登録されています。\n登録済み書籍名：${existingTitle}` 
+          };
+        }
       }
     }
     
@@ -1299,14 +1329,15 @@ function registerBook(bookData) {
     const newRow = [
       bookData.isbn,
       bookData.title,
-      bookData.author,
-      bookData.publisher,
-      bookData.note
+      bookData.author || "",
+      bookData.publisher || "",
+      bookData.note || ""
     ];
     
+    console.log("新規登録データ:", newRow);
     bookSheet.appendRow(newRow);
     
-    return { success: true, message: `書籍「${bookData.title}」を登録しました。` };
+    return { success: true, message: `書籍「${bookData.title}」を登録しました。\n書籍ID: ${bookData.isbn}` };
   } catch (error) {
     console.error(`書籍登録中にエラーが発生しました: ${error}`);
     return { success: false, message: `書籍登録中にエラーが発生しました: ${error.message}` };
@@ -1571,5 +1602,137 @@ function generateBarcodesForSheet() {
     SpreadsheetApp.getUi().alert(`「${sheetName}」シートのバーコード生成が完了しました。`);
   } else {
     SpreadsheetApp.getUi().alert('処理対象のIDがありませんでした。');
+  }
+}
+
+/**
+ * 新しい利用者IDを生成する関数
+ * @return {string} 新しい利用者ID (例: R00001)
+ */
+function generateNewUserId() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName("利用者DB");
+    
+    if (!userSheet) {
+      throw new Error("利用者DBシートが見つかりません。");
+    }
+    
+    // 既存の利用者IDを取得
+    const data = userSheet.getDataRange().getValues();
+    const userIdColIndex = 0; // A列
+    
+    console.log(`利用者DBのデータ行数: ${data.length}`);
+    
+    let maxNumber = 0;
+    
+    // データが1行以下（ヘッダーのみまたは空）の場合
+    if (data.length <= 1) {
+      console.log("利用者DBが空です。最初のIDを生成します。");
+      return 'R00001';
+    }
+    
+    // ヘッダー行を除いて最大の番号を探す
+    for (let i = 1; i < data.length; i++) {
+      const userId = data[i][userIdColIndex];
+      console.log(`行 ${i + 1}: userId = ${userId}`);
+      if (userId && typeof userId === 'string' && userId.startsWith('R')) {
+        // "R00001" から数字部分を抽出
+        const numberPart = userId.substring(1);
+        const number = parseInt(numberPart, 10);
+        console.log(`数字部分: ${numberPart}, 数値: ${number}`);
+        if (!isNaN(number) && number > maxNumber) {
+          maxNumber = number;
+        }
+      }
+    }
+    
+    // 次の番号を生成
+    const nextNumber = maxNumber + 1;
+    const nextUserId = 'R' + nextNumber.toString().padStart(5, '0');
+    
+    console.log(`生成された新しい利用者ID: ${nextUserId}`);
+    return nextUserId;
+  } catch (error) {
+    console.error(`利用者ID生成中にエラーが発生しました: ${error}`);
+    throw new Error(`利用者IDの生成に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 利用者をスプレッドシートの利用者DBに登録する関数
+ * @param {object} userData - 利用者データ {userId, userName, userAddress, userEmail, userPhone}
+ * @return {object} 処理結果 {success: boolean, message: string}
+ */
+function registerUser(userData) {
+  if (!userData || !userData.userName || !userData.userAddress) {
+    return { success: false, message: "氏名と住所は必須です。" };
+  }
+  
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName("利用者DB");
+    
+    if (!userSheet) {
+      return { success: false, message: "利用者DBシートが見つかりません。" };
+    }
+    
+    // 新しい行を追加
+    const newRow = [
+      userData.userId,
+      userData.userName,
+      userData.userEmail || "",
+      userData.userPhone || "",
+      userData.userAddress,
+      "" // 備考欄（空欄）
+    ];
+    
+    userSheet.appendRow(newRow);
+    
+    // メールが入力されている場合は登録完了メールを送信
+    if (userData.userEmail) {
+      sendRegistrationEmail(userData);
+    }
+    
+    return { success: true, message: `利用者「${userData.userName}」を登録しました。利用者ID: ${userData.userId}` };
+  } catch (error) {
+    console.error(`利用者登録中にエラーが発生しました: ${error}`);
+    return { success: false, message: `利用者登録中にエラーが発生しました: ${error.message}` };
+  }
+}
+
+/**
+ * 利用者登録完了メールを送信する関数
+ * @param {object} userData - 利用者データ
+ */
+function sendRegistrationEmail(userData) {
+  try {
+    const subject = "図書館利用者登録完了のお知らせ";
+    
+    const body = `
+${userData.userName} 様
+
+この度は、図書館システムにご登録いただきありがとうございます。
+以下の内容で利用者登録が完了しました。
+
+【登録情報】
+利用者ID: ${userData.userId}
+氏名: ${userData.userName}
+住所: ${userData.userAddress}
+メールアドレス: ${userData.userEmail}
+電話番号: ${userData.userPhone || "未登録"}
+
+利用者IDは図書の貸出・返却時に必要となりますので、大切に保管してください。
+
+今後ともよろしくお願いいたします。
+
+図書館管理システム
+`;
+
+    GmailApp.sendEmail(userData.userEmail, subject, body);
+    console.log(`登録完了メールを送信しました: ${userData.userEmail}`);
+  } catch (error) {
+    console.error(`メール送信中にエラーが発生しました: ${error}`);
+    // メール送信に失敗しても登録は成功とする
   }
 }

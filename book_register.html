@@ -199,7 +199,7 @@
     
     /* 機能別ボタン */
     /* 補助ボタン - スキャン・検索用 */
-    .btn-utility, #start-button, #stop-button, #search-button {
+    .btn-utility, #start-button, #search-button {
       padding: 36px 60px; /* 3倍に拡大 */
       background-color: #6c757d; /* グレー系 */
       margin-right: 30px; /* 3倍に拡大 */
@@ -211,6 +211,13 @@
     }
     .btn-utility:disabled, #start-button:disabled, #search-button:disabled {
       background-color: #cccccc;
+    }
+    /* 検索ボタンを青色に */
+    #search-button {
+      background-color: #0056b3; /* 青色に統一 */
+    }
+    #search-button:hover {
+      background-color: #004494;
     }
     
     /* アクションボタン - 登録・貸出用 */
@@ -228,10 +235,10 @@
     }
     
     /* 危険ボタン - 返却・キャンセル用 */
-    .btn-danger, #stop-button {
+    .btn-danger {
       background-color: #dc3545; /* 赤色 */
     }
-    .btn-danger:hover, #stop-button:hover {
+    .btn-danger:hover {
       background-color: #c82333;
     }
     
@@ -318,7 +325,7 @@
         font-size: 48px; /* 3倍に拡大 */
         min-height: 150px; /* 3倍に拡大 */
       }
-      .btn-utility, #start-button, #stop-button, #search-button {
+      .btn-utility, #start-button, #search-button {
         margin-bottom: 30px; /* 3倍に拡大 */
         padding: 45px; /* 3倍に拡大 */
       }
@@ -387,7 +394,6 @@
     
     <div class="button-container">
       <button id="start-button">カメラを起動</button>
-      <button id="stop-button" disabled>カメラを停止</button>
     </div>
     
     <div id="scanner-container-register" class="scanner-container" style="display: none;">
@@ -468,7 +474,6 @@
     document.addEventListener('DOMContentLoaded', function() {
       // 要素の取得
       const startButton = document.getElementById('start-button');
-      const stopButton = document.getElementById('stop-button');
       const cameraView = document.getElementById('camera-view');
       const isbnInput = document.getElementById('isbn-input');
       const searchButton = document.getElementById('search-button');
@@ -488,13 +493,8 @@
         container.style.display = 'flex';
         initQuagga();
         startButton.disabled = true;
-        stopButton.disabled = false;
       });
       
-      // カメラ停止ボタンのイベントリスナー
-      stopButton.addEventListener('click', function() {
-        closeScanner('camera-view');
-      });
       
       // closeScanner関数をグローバルに定義
       window.closeScanner = function(viewportId) {
@@ -502,7 +502,6 @@
         container.style.display = 'none';
         stopQuagga();
         startButton.disabled = false;
-        stopButton.disabled = true;
       };
       
       // 検索ボタンのイベントリスナー
@@ -535,8 +534,6 @@
       // Quaggaの初期化
       function initQuagga() {
         if (quaggaInitialized) return;
-        
-        showStatusMessage("カメラを起動しています...", "");
         
         // 既存のQuaggaインスタンスを停止
         if (typeof Quagga !== 'undefined' && Quagga._handler) {
@@ -620,7 +617,6 @@
             return;
           }
           console.log("スキャナーの初期化完了。スキャンを開始します。");
-          showStatusMessage("バーコードをカメラに向けてください。", "");
           Quagga.start();
           
           // onProcessedコールバックを削除してオーバーレイを非表示
@@ -828,15 +824,13 @@
         
         // ボタンの状態を元に戻す
         startButton.disabled = false;
-        stopButton.disabled = true;
         
         // 新しいカメラ設定でスキャナーを再起動
         setTimeout(() => {
           container.style.display = 'flex';
           initQuagga();
           startButton.disabled = true;
-          stopButton.disabled = false;
-        }, 300);
+          }, 300);
       };
     });
   </script>
