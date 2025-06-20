@@ -191,6 +191,31 @@
         background-color: #000;
       }
 
+      /* スマホ用のビューポート設定 */
+      @media (max-width: 768px) {
+        .scanner-viewport {
+          width: 100% !important;
+          max-width: none !important;
+          height: 60vh !important; /* 固定値ではなくビューポート高さの60% */
+          min-height: 300px;
+          max-height: 500px;
+        }
+        
+        .scanner-container {
+          padding: 0;
+        }
+      }
+
+      /* Quaggaのcanvas要素を強制的に制御 */
+      .scanner-viewport canvas,
+      .scanner-viewport video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+      }
+
       /* Quaggaが追加する全要素を制御 */
       .scanner-viewport > * {
         position: absolute !important;
@@ -200,19 +225,39 @@
         height: 100% !important;
       }
 
-      .scanner-viewport video {
-        object-fit: cover !important;
-      }
-
-      .scanner-viewport canvas {
-        max-width: 100% !important;
-        max-height: 100% !important;
-      }
-
       /* 不要な要素を確実に非表示 */
       .scanner-viewport br,
       .scanner-viewport .drawingBuffer {
         display: none !important;
+      }
+
+      /* 不要な要素を確実に削除 */
+      .scanner-viewport > *:not(video):not(canvas:last-child):not(.scanner-guide):not(.guide-frame):not(.guide-text) {
+        display: none !important;
+      }
+
+      /* Quaggaが生成する不要な要素を完全に非表示 */
+      .scanner-viewport .drawingBuffer,
+      .scanner-viewport > br,
+      .scanner-container canvas.drawingBuffer {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+      }
+
+      /* スキャナービューポート内の要素制御を強化 */
+      .scanner-viewport > * {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
 
       /* スキャンガイド */
@@ -490,29 +535,39 @@
       function startScanner(targetElementId, inputFieldId) {
         setMessage("カメラを起動しています...");
         
-        // 既存のインスタンスを確実に停止
+        // 既存のQuaggaインスタンスを停止
         if (typeof Quagga !== 'undefined' && Quagga._handler) {
           Quagga.stop();
+        }
+        
+        // ビューポートを完全にクリア
+        const viewport = document.getElementById(targetElementId);
+        if (viewport) {
+          viewport.innerHTML = '';
+          viewport.style.cssText = ''; // すべてのインラインスタイルをクリア
           
-          // ビューポートをクリーンアップ
-          const viewport = document.getElementById(targetElementId);
-          if (viewport) {
-            while (viewport.firstChild) {
-              viewport.removeChild(viewport.firstChild);
-            }
+          // スマホの場合は特別な処理
+          if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            viewport.style.height = '60vh';
+            viewport.style.minHeight = '300px';
+            viewport.style.maxHeight = '500px';
           }
         }
+
+        // Quaggaが生成した可能性のある要素をグローバルに削除
+        document.querySelectorAll('.drawingBuffer').forEach(el => el.remove());
         
         isScanning = true;
         
-        // 初期化前に少し待機
+        // 初期化を遅延実行
         setTimeout(() => {
           initializeScanner(targetElementId, inputFieldId);
-        }, 200);
+        }, 300); // スマホでは少し長めに待機
       }
       
       function initializeScanner(targetElementId, inputFieldId) {
-        // スキャンガイドとメッセージはHTMLに既に含まれているため、ここでは追加しない
+        // デバイス判定
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
         Quagga.init({
           inputStream : {
@@ -520,17 +575,19 @@
             type : "LiveStream",
             target: document.querySelector(`#${targetElementId}`),
             constraints: {
-              width: 1280,
-              height: 720,
-              facingMode: "environment"
-            }
+              width: { min: 640, ideal: isMobile ? 1280 : 1920, max: 1920 },
+              height: { min: 480, ideal: isMobile ? 720 : 1080, max: 1080 },
+              facingMode: "environment",
+              aspectRatio: isMobile ? { ideal: 16/9 } : undefined
+            },
+            area: isMobile ? { top: "0%", right: "0%", left: "0%", bottom: "0%" } : undefined
           },
-          locator: { 
-            patchSize: "medium",
-            halfSample: true
+          locator: {
+            patchSize: isMobile ? "large" : "medium",
+            halfSample: !isMobile
           },
-          numOfWorkers: 2,
-          frequency: 10,
+          numOfWorkers: isMobile ? 2 : 4,
+          frequency: isMobile ? 5 : 10,
           decoder : { 
             readers : [          // 複数のバーコードリーダーを有効化
               'code_128_reader',
@@ -637,10 +694,24 @@
         // ビューポートを完全にクリア
         const viewport = document.getElementById(viewportId);
         if (viewport) {
-          // インラインスタイルをリセット
+          // すべての子要素を強制的に削除
+          while (viewport.firstChild) {
+            viewport.removeChild(viewport.firstChild);
+          }
+          
+          // インラインスタイルを完全にリセット
           viewport.removeAttribute('style');
-          // 全ての子要素を削除
-          viewport.innerHTML = '';
+          viewport.style.display = 'none';
+          
+          // Quaggaが生成した可能性のある要素をグローバルに検索して削除
+          document.querySelectorAll('.drawingBuffer').forEach(el => el.remove());
+        }
+        
+        // スキャナーコンテナ内のすべてのcanvas要素を削除
+        const container = document.getElementById('scanner-container-user-returns');
+        if (container) {
+          container.querySelectorAll('canvas').forEach(el => el.remove());
+          container.querySelectorAll('video').forEach(el => el.remove());
         }
         
         // スキャン状態をリセット
