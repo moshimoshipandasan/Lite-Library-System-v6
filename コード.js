@@ -733,20 +733,19 @@ function processBulkReturn(bookIds) {
     const returnDateColIndex = 7; // H列
     const currentDate = new Date();
 
-    // シートのデータをMapに格納して高速化 (書籍IDをキー、行インデックスと行データを値)
-    // 注意: 同じ書籍IDで複数の未返却レコードがある場合、最後のものだけがMapに残る
+    // シートのデータをMapに格納して高速化 (書籍IDをキー、行インデックスと行データの配列を値)
+    // 同じ書籍IDで複数の未返却レコードがある場合も全て処理する
     const lendingMap = new Map();
     for (let i = 1; i < data.length; i++) {
       const rowBookId = data[i][bookIdColIndex] ? data[i][bookIdColIndex].toString().trim().toLowerCase() : null;
       if (rowBookId) {
-         // 未返却のレコードのみを対象とするように修正
          const rowStatus = data[i][statusColIndex];
          if(rowStatus === "未返却") {
-            // 同じIDが複数あれば上書きされる（=最新の貸出が対象になる）
-             lendingMap.set(rowBookId, { index: i + 1, rowData: data[i] });
-         } else if (!lendingMap.has(rowBookId)) {
-             // 返却済みだがMapに未登録の場合（未返却がなかった場合）
-             lendingMap.set(rowBookId, { index: i + 1, rowData: data[i] });
+            // 同じIDが複数ある場合は配列に追加
+            if (!lendingMap.has(rowBookId)) {
+              lendingMap.set(rowBookId, []);
+            }
+            lendingMap.get(rowBookId).push({ index: i + 1, rowData: data[i] });
          }
       }
     }
@@ -758,27 +757,31 @@ function processBulkReturn(bookIds) {
       if (!trimmedBookId) return; // 空のIDはスキップ
 
       const bookIdLower = trimmedBookId.toLowerCase();
-      const recordInfo = lendingMap.get(bookIdLower);
+      const recordInfoArray = lendingMap.get(bookIdLower);
 
-      if (recordInfo) {
-        const rowIndex = recordInfo.index;
-        const rowStatus = recordInfo.rowData[statusColIndex];
+      if (recordInfoArray && recordInfoArray.length > 0) {
+        // 同じ書籍IDの未返却レコードを全て処理
+        recordInfoArray.forEach(recordInfo => {
+          const rowIndex = recordInfo.index;
+          const rowStatus = recordInfo.rowData[statusColIndex];
 
-        if (rowStatus === "未返却") {
-          // 更新リストに追加
-          updates.push({ row: rowIndex, col: statusColIndex + 1, value: "返却済" });
-          updates.push({ row: rowIndex, col: returnDateColIndex + 1, value: currentDate });
-          successCount++;
-          console.log(`返却処理準備完了: 書籍ID=${trimmedBookId} (行 ${rowIndex})`);
-        } else {
-          alreadyReturnedCount++;
-          alreadyReturnedIds.push(trimmedBookId);
-          console.warn(`書籍ID ${trimmedBookId} は既に返却済みです (行 ${rowIndex})`);
-        }
+          if (rowStatus === "未返却") {
+            // 更新リストに追加
+            updates.push({ row: rowIndex, col: statusColIndex + 1, value: "返却済" });
+            updates.push({ row: rowIndex, col: returnDateColIndex + 1, value: currentDate });
+            successCount++;
+            console.log(`返却処理準備完了: 書籍ID=${trimmedBookId} (行 ${rowIndex})`);
+          } else {
+            // これは発生しないはず（Mapには未返却のみ格納）
+            alreadyReturnedCount++;
+            alreadyReturnedIds.push(trimmedBookId);
+            console.warn(`書籍ID ${trimmedBookId} は既に返却済みです (行 ${rowIndex})`);
+          }
+        });
       } else {
         notFoundCount++;
         notFoundIds.push(trimmedBookId);
-        console.warn(`書籍ID ${trimmedBookId} の貸出記録が見つかりませんでした。`); // メッセージ修正
+        console.warn(`書籍ID ${trimmedBookId} の未返却の貸出記録が見つかりませんでした。`);
       }
     });
 
