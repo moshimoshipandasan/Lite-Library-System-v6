@@ -158,8 +158,8 @@ function getUserInfo(userId) {
     // ヘッダー行を除く (1行目から検索)
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      // 利用者IDが一致するか確認
-      if (row[userIdColIndex] && row[userIdColIndex].toString().trim() === userId.trim()) {
+      // 利用者IDが一致するか確認（大文字小文字を無視）
+      if (row[userIdColIndex] && row[userIdColIndex].toString().trim().toLowerCase() === userId.trim().toLowerCase()) {
         const userName = row[nameColIndex] || "氏名不明";
         const userEmail = row[emailColIndex] || null; // メールアドレスがない場合はnull
         console.log(`利用者情報取得成功: ${userName}, Email: ${userEmail}`);
@@ -1422,6 +1422,8 @@ function getUserDetails(userId) {
     return null;
   }
   
+  console.log(`getUserDetails: 利用者情報検索開始: UserID=${userId}`);
+  
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const userSheet = ss.getSheetByName("利用者DB");
@@ -1435,27 +1437,57 @@ function getUserDetails(userId) {
     const nameColIndex = 1; // B列
     const emailColIndex = 2; // C列
     
+    console.log(`getUserDetails: データ行数: ${data.length}`);
+    
+    // ヘッダー行の内容をログ出力
+    if (data.length > 0) {
+      console.log(`getUserDetails: ヘッダー行: ${JSON.stringify(data[0])}`);
+    }
+    
     // ヘッダー行を除いて検索
     for (let i = 1; i < data.length; i++) {
-      const rowUserId = data[i][userIdColIndex] ? data[i][userIdColIndex].toString().trim() : "";
+      // 空の行をスキップ
+      if (!data[i] || data[i].length === 0 || !data[i][userIdColIndex]) {
+        continue;
+      }
+      
+      const rowUserId = data[i][userIdColIndex].toString().trim();
+      // デバッグ用: 最初の数行の利用者IDを表示
+      if (i <= 3) {
+        console.log(`getUserDetails: 行${i + 1} - DB内のID: "${rowUserId}" (長さ:${rowUserId.length}), 検索ID: "${userId.trim()}" (長さ:${userId.trim().length})`);
+      }
+      
+      // IDが完全一致するかチェック（大文字小文字を無視）
       if (rowUserId.toLowerCase() === userId.trim().toLowerCase()) {
         // 追加のカラムがある場合の取得
         const phoneColIndex = 3; // D列（電話番号）
         const addressColIndex = 4; // E列（住所）
         const registrationDateColIndex = 5; // F列（登録日）
         
-        return {
+        // カラム数をチェックして安全にアクセス
+        const rowLength = data[i].length;
+        console.log(`getUserDetails: 行${i + 1}のカラム数: ${rowLength}`);
+        
+        // 日付を文字列に変換して返す
+        const registrationDate = rowLength > registrationDateColIndex ? data[i][registrationDateColIndex] : null;
+        const lastUseDate = getLastUseDate(userId);
+        
+        const userDetails = {
           userId: rowUserId,
           name: data[i][nameColIndex] || "",
           email: data[i][emailColIndex] || "",
-          phone: data[i][phoneColIndex] || "",
-          address: data[i][addressColIndex] || "",
-          registrationDate: data[i][registrationDateColIndex] || new Date(),
-          lastUseDate: getLastUseDate(userId) // 最終利用日を取得
+          phone: rowLength > phoneColIndex ? (data[i][phoneColIndex] || "") : "",
+          address: rowLength > addressColIndex ? (data[i][addressColIndex] || "") : "",
+          registrationDate: registrationDate instanceof Date ? registrationDate.toISOString() : (registrationDate || new Date().toISOString()),
+          lastUseDate: lastUseDate instanceof Date ? lastUseDate.toISOString() : null
         };
+        console.log(`getUserDetails: 利用者情報取得成功:`, userDetails);
+        console.log(`getUserDetails: 返却するデータのJSON:`, JSON.stringify(userDetails));
+        return userDetails;
       }
     }
     
+    console.log(`getUserDetails: 利用者ID ${userId} の情報が見つかりませんでした。`);
     return null;
   } catch (error) {
     console.error(`利用者情報の取得中にエラーが発生しました: ${error}`);
@@ -1647,6 +1679,98 @@ function deleteUser(userId) {
   } catch (error) {
     console.error(`利用者の削除中にエラーが発生しました: ${error}`);
     throw new Error(`利用者の削除に失敗しました: ${error.message}`);
+  }
+}
+
+/**
+ * 利用者DBの構造を確認するテスト関数
+ */
+function testUserDatabase() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName("利用者DB");
+  
+  if (!userSheet) {
+    console.log("利用者DBシートが見つかりません");
+    return "利用者DBシートが見つかりません";
+  }
+  
+  const data = userSheet.getDataRange().getValues();
+  let result = "=== 利用者DBシート構造 ===\n";
+  result += "総行数: " + data.length + "\n";
+  
+  if (data.length > 0) {
+    result += "ヘッダー行: " + JSON.stringify(data[0]) + "\n";
+    result += "カラム数: " + data[0].length + "\n\n";
+  }
+  
+  // 最初の5行のデータを表示
+  for (let i = 0; i < Math.min(5, data.length); i++) {
+    result += `行${i + 1}: ` + JSON.stringify(data[i]) + "\n";
+  }
+  
+  // getUserDetailsをテスト
+  if (data.length > 1 && data[1][0]) {
+    const testUserId = data[1][0].toString();
+    result += "\n=== getUserDetailsテスト ===\n";
+    result += "テストするユーザーID: " + testUserId + "\n";
+    const testResult = getUserDetails(testUserId);
+    result += "getUserDetails結果: " + JSON.stringify(testResult) + "\n";
+  }
+  
+  return result;
+}
+
+/**
+ * getUserDetailsの簡易テスト関数
+ */
+function testGetUserDetails() {
+  const testId = "R00001";
+  console.log("テスト開始: getUserDetails(" + testId + ")");
+  
+  try {
+    const result = getUserDetails(testId);
+    console.log("結果:", result);
+    console.log("JSON:", JSON.stringify(result));
+    return result;
+  } catch (error) {
+    console.error("エラー:", error);
+    return { error: error.message };
+  }
+}
+
+/**
+ * 利用者DBのすべての利用者IDを取得する関数
+ */
+function getAllUserIds() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName("利用者DB");
+    
+    if (!userSheet) {
+      return { error: "利用者DBシートが見つかりません" };
+    }
+    
+    const data = userSheet.getDataRange().getValues();
+    const userIds = [];
+    
+    // ヘッダー行を除いて利用者IDを収集
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0]) {
+        userIds.push({
+          id: data[i][0].toString(),
+          name: data[i][1] || "名前なし",
+          row: i + 1
+        });
+      }
+    }
+    
+    return {
+      count: userIds.length,
+      users: userIds,
+      headers: data[0] || []
+    };
+  } catch (error) {
+    return { error: error.message };
   }
 }
 
@@ -1990,7 +2114,7 @@ function registerUser(userData) {
       userData.userEmail || "",
       userData.userPhone || "",
       userData.userAddress,
-      "" // 備考欄（空欄）
+      new Date() // 登録日
     ];
     
     userSheet.appendRow(newRow);

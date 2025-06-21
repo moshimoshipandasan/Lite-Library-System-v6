@@ -595,18 +595,23 @@
       
       google.script.run
         .withSuccessHandler(function(data) {
+          console.log('検索結果:', data);
+          console.log('データ型:', typeof data);
+          console.log('JSON文字列:', JSON.stringify(data));
           if (data) {
             currentUserData = data;
             displayUserInfo(data);
             loadUserHistory(userId);
             showMessage('', '');
           } else {
-            showMessage('利用者が見つかりません', 'error');
+            console.log('利用者が見つかりませんでした。入力されたID:', userId);
+            showMessage('利用者が見つかりません。\n入力されたID: ' + userId, 'error');
             document.getElementById('user-info-section').style.display = 'none';
             document.getElementById('history-section').style.display = 'none';
           }
         })
         .withFailureHandler(function(error) {
+          console.error('検索エラー:', error);
           showMessage('検索中にエラーが発生しました: ' + error.message, 'error');
         })
         .getUserDetails(userId);
@@ -776,6 +781,7 @@
         day: '2-digit'
       });
     }
+    
     
     // モーダル外クリックで閉じる
     window.onclick = function(event) {
